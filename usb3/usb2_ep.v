@@ -17,22 +17,24 @@ input	wire			wr_clk,
 input	wire			reset_n,
 
 // PROTOCOL
-input	wire	[8:0]	buf_in_addr,
+input	wire	[10:0]	buf_in_addr,
 input	wire	[7:0]	buf_in_data,
 input	wire			buf_in_wren,
 output	wire			buf_in_ready,
 input	wire			buf_in_commit,
-input	wire	[9:0]	buf_in_commit_len,
+input	wire	[10:0]	buf_in_commit_len,
 output	wire			buf_in_commit_ack,
 
-input	wire	[8:0]	buf_out_addr,
+input	wire	[10:0]	buf_out_addr,
 output	wire	[7:0]	buf_out_q,
-output	wire	[9:0]	buf_out_len,
+output	wire	[10:0]	buf_out_len,
 output	wire			buf_out_hasdata,
 input	wire			buf_out_arm,
 output	wire			buf_out_arm_ack,
 
 input	wire	[1:0]	mode,
+
+input	wire			fast_commit, /* no wait extra cycles in commit */
 
 input	wire			data_toggle_act,
 output	reg		[1:0]	data_toggle
@@ -43,24 +45,37 @@ output	reg		[1:0]	data_toggle
 	reg 			reset_1, reset_2;
 	reg				buf_in_commit_1, buf_in_commit_2, buf_in_commit_3;
 	reg				buf_out_arm_1, buf_out_arm_2, buf_out_arm_3;
+
+	reg		[3:0]	dc;
+	reg		[5:0]	state_in;
 	
 	parameter [1:0]	DATA_TOGGLE_0	= 2'b00;
 	parameter [1:0]	DATA_TOGGLE_1	= 2'b01;
 	parameter [1:0]	DATA_TOGGLE_2	= 2'b10;
 	parameter [1:0]	DATA_TOGGLE_M	= 2'b11;
+
+	parameter [5:0]	ST_RST_0			= 6'd0,
+					ST_RST_1			= 6'd1,
+					ST_IDLE				= 6'd10,
+					ST_IN_COMMIT		= 6'd11,
+					ST_IN_SWAP			= 6'd12;
 	
+	reg		[5:0]	state_out;	
+
+	parameter [5:0]	ST_OUT_ARM			= 6'd11,
+					ST_OUT_SWAP			= 6'd12;	
 	// for keeping track of the endpoint double buffering
 	reg				ptr_in;
 	reg				ptr_out;
 	
-	reg		[9:0]	len_in;
+	reg		[10:0]	len_in;
 	reg				ready_in_a;
 	reg				ready_in_b;
 	assign			buf_in_ready 		= 	ptr_in ? ready_in_b : ready_in_a;
 	assign			buf_in_commit_ack	= 	(state_in == ST_IN_COMMIT || state_in == ST_IN_SWAP);
 	
-	reg		[9:0]	len_out_a;
-	reg		[9:0]	len_out_b;
+	reg		[10:0]	len_out_a;
+	reg		[10:0]	len_out_b;
 	reg				hasdata_out_a;
 	reg				hasdata_out_b;
 	assign			buf_out_len			=	ptr_out ? len_out_b : len_out_a;
@@ -72,18 +87,7 @@ output	reg		[1:0]	data_toggle
 					EP_MODE_BULK		= 2'd2,
 					EP_MODE_INTERRUPT	= 2'd3;
 					
-	reg		[3:0]	dc;
-	
-	reg		[5:0]	state_in;
-	parameter [5:0]	ST_RST_0			= 6'd0,
-					ST_RST_1			= 6'd1,
-					ST_IDLE				= 6'd10,
-					ST_IN_COMMIT		= 6'd11,
-					ST_IN_SWAP			= 6'd12;
-					
-	reg		[5:0]	state_out;	
-	parameter [5:0]	ST_OUT_ARM			= 6'd11,
-					ST_OUT_SWAP			= 6'd12;	
+				
 	
 always @(posedge phy_clk) begin
 
@@ -127,7 +131,10 @@ always @(posedge phy_clk) begin
 			// external device has written to this endpoint
 			len_in <= buf_in_commit_len;
 			dc <= 0;
-			state_in <= ST_IN_COMMIT;
+			if (fast_commit)
+				state_in <= ST_IN_SWAP; // aospan: nowait !
+			else
+				state_in <= ST_IN_COMMIT;
 		end
 	end
 	ST_IN_COMMIT: begin
@@ -229,8 +236,8 @@ end
 
 	// segment the space into two 512 byte buffers
 	//
-	wire	[9:0]	rd_addr = buf_out_addr + (ptr_out ? 10'd512 : 10'h0);
-	wire	[9:0]	wr_addr = buf_in_addr + (ptr_in ? 10'd512 : 10'h0);
+	wire	[10:0]	rd_addr = buf_out_addr + (ptr_out ? 11'd1024 : 11'h0);
+	wire	[10:0]	wr_addr = buf_in_addr + (ptr_in ? 11'd1024 : 11'h0);
 	
 mf_usb2_ep	iu2ep (
 	.rdclock	( rd_clk ),

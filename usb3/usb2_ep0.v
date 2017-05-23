@@ -50,6 +50,11 @@ output	reg				err_setup_pkt
 
 `include "usb_descrip.vh"
 
+
+	reg		[5:0]	buf_in_rdaddr;
+	wire	[7:0]	buf_in_q;
+	reg		[7:0]	descrip_addr_offset;
+
 	reg 			reset_1, reset_2;
 	reg				buf_in_commit_1, buf_in_commit_2;
 	reg				buf_out_arm_1, buf_out_arm_2;
@@ -102,27 +107,8 @@ output	reg				err_setup_pkt
 	wire	[15:0]	packet_setup_wlen	= {packet_setup[23:16], packet_setup[31:24]};
 	wire	[15:0]	packet_setup_crc16	= packet_setup[15:0];
 	
-	reg		[5:0]	desired_out_len;
-	reg		[15:0]	packet_out_len;
-	reg		[3:0]	dev_config;
-	
-	reg				ptr_in;
-	reg				ptr_out;
-	
-	reg		[9:0]	len_in;
-	reg				ready_in;
-	assign			buf_in_ready 		= 	ready_in;
-	assign			buf_in_commit_ack	= 	(state_in == ST_IN_COMMIT);
-	
-	reg		[9:0]	len_out;
-	reg				hasdata_out;
-	assign			buf_out_len			=	len_out;
-	assign			buf_out_hasdata 	= 	hasdata_out;
-	assign			buf_out_arm_ack 	= 	(state_out == ST_OUT_ARM);
-	
-	reg		[6:0]	dc;
-	
-	reg		[5:0]	state_in;
+	parameter [5:0]	ST_OUT_ARM			= 6'd11,
+					ST_OUT_SWAP			= 6'd20;
 	parameter [5:0]	ST_RST_0			= 6'd0,
 					ST_RST_1			= 6'd1,
 					ST_IDLE				= 6'd10,
@@ -141,9 +127,29 @@ output	reg				err_setup_pkt
 					ST_REQ_VENDOR		= 6'd38;
 					
 	reg		[5:0]	state_out;
-	parameter [5:0]	ST_OUT_ARM			= 6'd11,
-					ST_OUT_SWAP			= 6'd20;
 
+
+	reg		[5:0]	desired_out_len;
+	reg		[15:0]	packet_out_len;
+	reg		[3:0]	dev_config;
+	
+	reg				ptr_in;
+	reg				ptr_out;
+	
+	reg		[5:0]	state_in;
+	reg		[9:0]	len_in;
+	reg				ready_in;
+	assign			buf_in_ready 		= 	ready_in;
+	assign			buf_in_commit_ack	= 	(state_in == ST_IN_COMMIT);
+	
+	reg		[9:0]	len_out;
+	reg				hasdata_out;
+	assign			buf_out_len			=	len_out;
+	assign			buf_out_hasdata 	= 	hasdata_out;
+	assign			buf_out_arm_ack 	= 	(state_out == ST_OUT_ARM);
+	
+	reg		[6:0]	dc;
+	
 					
 always @(posedge phy_clk) begin
 
@@ -425,8 +431,6 @@ end
 // this may seem backwards but it's just for consistency, which is not entirely
 // reflected in these conventions locally
 
-	reg		[5:0]	buf_in_rdaddr;
-	wire	[7:0]	buf_in_q;
 	
 mf_usb2_ep0in	iu2ep0i (
 	.clock 		( phy_clk ),
@@ -442,7 +446,6 @@ mf_usb2_ep0in	iu2ep0i (
 // segmented
 // relevant descriptors (device, interface, endpoint etc)
 
-	reg		[7:0]	descrip_addr_offset;
 	
 mf_usb2_descrip	iu2d (
 	.clock 		( phy_clk ),

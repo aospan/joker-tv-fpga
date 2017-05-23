@@ -33,8 +33,21 @@ input	wire	[7:0]	buf_in_data,
 input	wire			buf_in_wren,
 output	wire			buf_in_ready,
 input	wire			buf_in_commit,
-input	wire	[9:0]	buf_in_commit_len,
+input	wire	[10:0]	buf_in_commit_len,
 output	wire			buf_in_commit_ack,
+
+/* EP3 TS */
+input	wire			ep3_ext_clk,
+input	wire	[10:0]	ep3_buf_in_addr,
+input	wire	[7:0]	ep3_buf_in_data,
+input	wire			ep3_buf_in_wren,
+output	wire			ep3_buf_in_ready,
+input	wire			ep3_buf_in_commit,
+input	wire	[10:0]	ep3_buf_in_commit_len,
+output	wire			ep3_buf_in_commit_ack,
+input	wire			ep3_ext_buf_out_arm,
+
+
 input	wire	[8:0]	buf_out_addr,
 output	wire	[7:0]	buf_out_q,
 output	wire	[9:0]	buf_out_len,
@@ -53,12 +66,17 @@ output	wire			err_pid_out_of_seq,
 output	wire			err_setup_pkt,
 
 output	wire	[10:0]	dbg_frame_num,
-output	wire	[1:0]	dbg_linestate
+output	wire	[1:0]	dbg_linestate,
 
+// aospan:debug
+output	wire	prot_buf_out_arm
 );
 
 	reg 			reset_1, reset_2;				// local reset
 	
+	wire	[7:0]	phy_ulpi_d_in = phy_ulpi_d;
+	wire	[7:0]	phy_ulpi_d_out;
+	wire			phy_ulpi_d_oe;
 	// allow reset-time pin strapping for the usb 3.0 phy. 
 	// this should not affect regular usb 2.0 PHYs
 	//
@@ -70,9 +88,6 @@ output	wire	[1:0]	dbg_linestate
 						4'b0
 					});
 	
-	wire	[7:0]	phy_ulpi_d_in = phy_ulpi_d;
-	wire	[7:0]	phy_ulpi_d_out;
-	wire			phy_ulpi_d_oe;
 									
 always @(posedge ext_clk) begin
 	// synchronize external reset to local domain
@@ -141,6 +156,28 @@ usb2_ulpi 	ia (
 	.dbg_linestate 	( dbg_linestate )
 );
 
+	wire	[3:0]	prot_sel_endp;
+	wire	[8:0]	prot_buf_in_addr;
+	wire	[7:0]	prot_buf_in_data;
+	wire			prot_buf_in_wren;
+	wire			prot_buf_in_ready;
+	wire			prot_buf_in_commit;
+	wire	[10:0]	prot_buf_in_commit_len;
+	wire			prot_buf_in_commit_ack;
+
+	wire	[10:0]	prot_buf_out_addr;
+	wire	[7:0]	prot_buf_out_q;
+	wire	[10:0]	prot_buf_out_len;
+	wire			prot_buf_out_hasdata;
+//	aospan
+//	wire			prot_buf_out_arm;
+	wire			prot_buf_out_arm_ack;
+	wire	[6:0]	prot_dev_addr;
+	
+	wire	[1:0]	prot_endp_mode;
+	wire			prot_data_toggle_act;
+	wire	[1:0]	prot_data_toggle;
+	
 
 ////////////////////////////////////////////////////////////
 //
@@ -215,27 +252,6 @@ usb2_packet ip (
 //
 ////////////////////////////////////////////////////////////
 
-	wire	[3:0]	prot_sel_endp;
-	wire	[8:0]	prot_buf_in_addr;
-	wire	[7:0]	prot_buf_in_data;
-	wire			prot_buf_in_wren;
-	wire			prot_buf_in_ready;
-	wire			prot_buf_in_commit;
-	wire	[9:0]	prot_buf_in_commit_len;
-	wire			prot_buf_in_commit_ack;
-
-	wire	[8:0]	prot_buf_out_addr;
-	wire	[7:0]	prot_buf_out_q;
-	wire	[9:0]	prot_buf_out_len;
-	wire			prot_buf_out_hasdata;
-	wire			prot_buf_out_arm;
-	wire			prot_buf_out_arm_ack;
-	wire	[6:0]	prot_dev_addr;
-	
-	wire	[1:0]	prot_endp_mode;
-	wire			prot_data_toggle_act;
-	wire	[1:0]	prot_data_toggle;
-	
 usb2_protocol ipr (
 	.reset_n			( reset_n_out ),
 	
@@ -271,6 +287,17 @@ usb2_protocol ipr (
 	.ext_buf_in_commit		( buf_in_commit ),
 	.ext_buf_in_commit_len	( buf_in_commit_len ),
 	.ext_buf_in_commit_ack	( buf_in_commit_ack ),
+	
+	// external interface
+	.ep3_ext_clk				( ep3_ext_clk ),
+	.ep3_ext_buf_in_addr		( ep3_buf_in_addr ),
+	.ep3_ext_buf_in_data		( ep3_buf_in_data ),
+	.ep3_ext_buf_in_wren		( ep3_buf_in_wren ),
+	.ep3_ext_buf_in_ready		( ep3_buf_in_ready ),
+	.ep3_ext_buf_in_commit		( ep3_buf_in_commit ),
+	.ep3_ext_buf_in_commit_len	( ep3_buf_in_commit_len ),
+	.ep3_ext_buf_in_commit_ack	( ep3_buf_in_commit_ack ),
+	.ep3_ext_buf_out_arm			(ep3_ext_buf_out_arm),
 	
 	.ext_buf_out_addr		( buf_out_addr ),
 	.ext_buf_out_q			( buf_out_q ),
