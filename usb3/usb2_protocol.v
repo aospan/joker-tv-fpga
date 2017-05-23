@@ -176,9 +176,9 @@ output	wire			err_setup_pkt
 											sel_endp == SEL_ENDP1 ? ep1_data_toggle : 
 											sel_endp == SEL_ENDP2 ? ep2_data_toggle : 
 											sel_endp == SEL_ENDP3 ? ep3_data_toggle : 2'h0;
-											
 
 	reg		[5:0]	dc;
+	
 	reg		[5:0]	state;
 	parameter [5:0]	ST_RST_0			= 6'd0,
 					ST_RST_1			= 6'd1,
