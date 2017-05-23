@@ -331,15 +331,6 @@ module i2c_master_bit_ctrl(
 	parameter [16:0] wr_b    = 17'b0_0100_0000_0000_0000;
 	parameter [16:0] wr_c    = 17'b0_1000_0000_0000_0000;
 	parameter [16:0] wr_d    = 17'b1_0000_0000_0000_0000;
-
-	
-	reg [31:0] target_i2c_bit;
-	reg [15:0] source_i2c_bit;
-	
-	inmem_i2c_bit   inmem_i2c_bit_inst(
-	.probe ( target_i2c_bit ),
-   .source( source_i2c_bit )
-   );
 	
 	always @(posedge clk or negedge nReset)
 	  if (!nReset)
@@ -364,12 +355,7 @@ module i2c_master_bit_ctrl(
 
 
 	        if (clk_en)
-				begin
-				if (c_state != 0)
-					target_i2c_bit[7:0] <= c_state;
-				if (cmd != 0)
-					target_i2c_bit[15:8] <= cmd;
-					
+				begin			
 	          case (c_state) // synopsys full_case parallel_case
 	            // idle state
 	            idle:

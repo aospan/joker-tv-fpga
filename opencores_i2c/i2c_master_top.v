@@ -140,23 +140,6 @@ module i2c_master_top(
 	wire i2c_busy;    // bus busy (start signal detected)
 	wire i2c_al;      // i2c bus arbitration lost
 	reg  al;          // status register arbitration lost bit
-
-	reg [31:0] target_i2c;
-	reg [15:0] source_i2c;
-	reg [7:0] w_acc_cnt = 8'b00000000;
-	
-	inmem_i2c   inmem_i2c_inst(
-   // .probe( { /* irq_flag, sr, cr, ctr, */ cr, ctr, sr, 1'b1 } ),
-	.probe ( target_i2c ),
-   .source(source_i2c)
-   );
-   
-	  /*
-	  	assign target_i2c[7:0] = ctr;
-		assign target_i2c[15:8] = cr;
-		assign target_i2c[23:16] = sr;
-		assign target_i2c[24] = irq_flag;
-	*/
 	
 	//
 	// module body
@@ -174,14 +157,7 @@ module i2c_master_top(
 
 	// assign DAT_O
 	always @(posedge wb_clk_i)
-	begin
-		
-	  	// target_i2c[7:0] = ctr;
-		target_i2c[31:24] = sr;
-		if (cr != 0)
-			target_i2c[23:16] = cr;
-		// assign target_i2c[24] = done;
-	
+	begin	
 	  case (wb_adr_i) // synopsis full_case parallel_case
 	    3'b000: wb_dat_o <= #1 prer[ 7:0];
 	    3'b001: wb_dat_o <= #1 prer[15:8];
@@ -192,9 +168,6 @@ module i2c_master_top(
 	    3'b110: wb_dat_o <= #1 cr;
 	    3'b111: wb_dat_o <= #1 0;   // reserved
 	  endcase
-
-	  target_i2c[7:0] <= wb_dat_o;
-	  target_i2c[15:8] <= wb_adr_i;
 	end
 
 	// generate registers
@@ -213,31 +186,7 @@ module i2c_master_top(
 	    end
 	  else
 	    if (wb_wacc)
-		 begin
-			// if ( wb_adr_i == 4 ) begin
-				// w_acc_cnt <= w_acc_cnt + 1;
-				// target_i2c[31:24] <= w_acc_cnt;
-				
-				// target_i2c[2:0] <= wb_adr_i;
-				// target_i2c[10:3] <= wb_dat_i;
-				// target_i2c[18:11] <= sr;
-				
-			// end
-			
-		 	/* if ( wb_dat_i != 0 ) begin
-					target_i2c[23:20] = 4'b0000;
-					target_i2c[15:8] = wb_dat_i;
-					target_i2c[18:16] = wb_adr_i;
-					target_i2c[19] = core_en;
-				end
-			else 
-				begin
-					target_i2c[23:20] = 4'b1111;
-					target_i2c[18:16] = wb_adr_i;
-					target_i2c[19] = core_en;
-			end
-			*/
-			
+		 begin	
 	      case (wb_adr_i) // synopsis full_case parallel_case
 	         3'b000 : prer [ 7:0] <= #1 wb_dat_i;
 	         3'b001 : prer [15:8] <= #1 wb_dat_i;
@@ -257,7 +206,6 @@ module i2c_master_top(
 		begin	
 	        if (core_en & (wb_adr_i == 3'b100) )
 				begin
-					// target_i2c[31:24] = wb_dat_i;
 					cr <= #1 wb_dat_i;
 				end
 	    end
