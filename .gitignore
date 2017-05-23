@@ -1,2 +1,5 @@
 joker_tv/db
 joker_tv/output_files
+joker_tv/incremental_db
+joker_tv/simulation
+*.v.bak
