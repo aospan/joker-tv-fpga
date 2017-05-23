@@ -1,0 +1,96 @@
+/*
+WARNING: Do NOT edit the input and output ports in this file in a text
+editor if you plan to continue editing the block that represents it in
+the Block Editor! File corruption is VERY likely to occur.
+*/
+/*
+Copyright (C) 2016  Intel Corporation. All rights reserved.
+Your use of Intel Corporation's design tools, logic functions 
+and other software and tools, and its AMPP partner logic 
+functions, and any output files from any of the foregoing 
+(including device programming or simulation files), and any 
+associated documentation or information are expressly subject 
+to the terms and conditions of the Intel Program License 
+Subscription Agreement, the Intel Quartus Prime License Agreement,
+the Intel MegaCore Function License Agreement, or other 
+applicable license agreement, including, without limitation, 
+that your use is for the sole purpose of programming logic 
+devices manufactured by Intel and sold by Intel or its 
+authorized distributors.  Please refer to the applicable 
+agreement for further details.
+*/
+(header "symbol" (version "1.2"))
+(symbol
+	(rect 0 0 312 184)
+	(text "aospan_pll" (rect 115 0 212 19)(font "Arial" (font_size 10)))
+	(text "inst" (rect 8 166 32 180)(font "Arial" ))
+	(port
+		(pt 0 72)
+		(input)
+		(text "inclk0" (rect 0 0 41 15)(font "Arial" (font_size 8)))
+		(text "inclk0" (rect 4 57 39 71)(font "Arial" (font_size 8)))
+		(line (pt 0 72)(pt 56 72))
+	)
+	(port
+		(pt 0 96)
+		(input)
+		(text "areset" (rect 0 0 44 15)(font "Arial" (font_size 8)))
+		(text "areset" (rect 4 81 41 95)(font "Arial" (font_size 8)))
+		(line (pt 0 96)(pt 56 96))
+	)
+	(port
+		(pt 312 72)
+		(output)
+		(text "c0" (rect 0 0 17 15)(font "Arial" (font_size 8)))
+		(text "c0" (rect 294 57 309 71)(font "Arial" (font_size 8)))
+	)
+	(port
+		(pt 312 96)
+		(output)
+		(text "c1" (rect 0 0 16 15)(font "Arial" (font_size 8)))
+		(text "c1" (rect 294 81 307 95)(font "Arial" (font_size 8)))
+	)
+	(port
+		(pt 312 120)
+		(output)
+		(text "locked" (rect 0 0 46 15)(font "Arial" (font_size 8)))
+		(text "locked" (rect 270 105 309 119)(font "Arial" (font_size 8)))
+	)
+	(drawing
+		(text "Cyclone IV E" (rect 217 165 505 343)(font "Arial" ))
+		(text "inclk0 frequency: 27.000 MHz" (rect 66 66 294 145)(font "Arial" ))
+		(text "Operation Mode: Normal" (rect 66 81 266 175)(font "Arial" ))
+		(text "Clk " (rect 67 105 153 223)(font "Arial" ))
+		(text "Ratio" (rect 93 105 216 223)(font "Arial" ))
+		(text "Ph (dg)" (rect 126 105 293 223)(font "Arial" ))
+		(text "DC (%)" (rect 169 105 379 223)(font "Arial" ))
+		(text "c0" (rect 71 121 156 255)(font "Arial" ))
+		(text "50/27" (rect 92 121 216 255)(font "Arial" ))
+		(text "0.00" (rect 134 121 293 255)(font "Arial" ))
+		(text "50.00" (rect 173 121 378 255)(font "Arial" ))
+		(text "c1" (rect 71 137 154 287)(font "Arial" ))
+		(text "20/9" (rect 96 137 217 287)(font "Arial" ))
+		(text "0.00" (rect 134 137 293 287)(font "Arial" ))
+		(text "50.00" (rect 173 137 378 287)(font "Arial" ))
+		(line (pt 0 0)(pt 313 0))
+		(line (pt 313 0)(pt 313 185))
+		(line (pt 0 185)(pt 313 185))
+		(line (pt 0 0)(pt 0 185))
+		(line (pt 64 103)(pt 209 103))
+		(line (pt 64 118)(pt 209 118))
+		(line (pt 64 134)(pt 209 134))
+		(line (pt 64 150)(pt 209 150))
+		(line (pt 64 103)(pt 64 150))
+		(line (pt 89 103)(pt 89 150)(line_width 3))
+		(line (pt 123 103)(pt 123 150)(line_width 3))
+		(line (pt 166 103)(pt 166 150)(line_width 3))
+		(line (pt 208 103)(pt 208 150))
+		(line (pt 56 56)(pt 255 56))
+		(line (pt 255 56)(pt 255 167))
+		(line (pt 56 167)(pt 255 167))
+		(line (pt 56 56)(pt 56 167))
+		(line (pt 311 72)(pt 255 72))
+		(line (pt 311 96)(pt 255 96))
+		(line (pt 311 120)(pt 255 120))
+	)
+)
