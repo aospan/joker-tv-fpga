@@ -27,7 +27,7 @@
 // Boston, MA 02110-1301, USA.
 //
 
-module top
+module joker_tv
 (
 input    wire           clk_27,
 
@@ -301,15 +301,6 @@ always @(posedge clk_50) begin
    endcase
 end
 
-
-wire [31:0] probe_rfa;
-reg [9:0] source;
-
-aospan_inmem   inmem(  
-   .probe( probe_rfa),
-   .source(source)
-   );
-
 reg [7:0] reset_ctrl = 8'hF3;
 	
 // aospan: rf
@@ -342,11 +333,11 @@ ts_proxy ts_proxy_inst (
 					 .ep3_ext_buf_out_arm(ep3_ext_buf_out_arm),
                 .commit_len( isoc_commit_len  /* 11'd1024 */ /* 11'd512 */ /* 376 */ /*188 */),
 					 .insel(insel),
-					 .tslost(probe_rfa[7:0]),
-					 .acked(probe_rfa[15:8]),
-					 .missed(probe_rfa[23:16]),
-					 .state(probe_rfa[27:24]),
-					 .fifo_clean(probe_rfa[31:28]),
+					 // .tslost(probe_rfa[7:0]),
+					 // .acked(probe_rfa[15:8]),
+					 // .missed(probe_rfa[23:16]),
+					 // .state(probe_rfa[27:24]),
+					 // .fifo_clean(probe_rfa[31:28]),
                 .reset(reset)
 );
 
@@ -359,31 +350,7 @@ aospan_pll  apll (
 
 
 
-// aospan: usb 
-wire [10:0] target_usb;
-wire [9:0] source_usb;
-
-wire aospan_reset;
-wire fifo_ulpi_1to0_wr_en;
-
-inmem_usb   inmem_usb_inst(
-   
-   .probe(target_usb),
-   .source(source_usb)
-   );
-
-assign   target_usb[4] = usb_configured & usb_in_ready;  
-assign   target_usb[3] = usb_in_ready;
-assign   target_usb[2] = usb_configured;
-
-// log_meta wrreq
-assign   fifo_ulpi_0to1_wr_packet_end = source_usb[0];
-// log_data wrreq
-assign   fifo_ulpi_1to0_wr_en = source_usb[1];
 reg      reset;
-
-
-wire  [ 8:0]      fifo_ulpi_1to0_wr_d = { source_usb[2], 8'hFF };
 
 assign   usb_pipe_tx_clk      = 1'b0;
 assign   usb_pipe_tx_data     = 16'h0000;
