@@ -39,7 +39,7 @@
 
 set_global_assignment -name FAMILY "Cyclone IV E"
 set_global_assignment -name DEVICE EP4CE22F17C8
-set_global_assignment -name TOP_LEVEL_ENTITY joker_tv_pin
+set_global_assignment -name TOP_LEVEL_ENTITY joker_tv
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION 16.1.0
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "10:53:04  Май 23, 2017"
 set_global_assignment -name LAST_QUARTUS_VERSION "16.1.0 Lite Edition"
@@ -55,6 +55,48 @@ set_global_assignment -name EDA_TIME_SCALE "1 ps" -section_id eda_simulation
 set_global_assignment -name EDA_OUTPUT_DATA_FORMAT "VERILOG HDL" -section_id eda_simulation
 set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+set_location_assignment PIN_E1 -to clk_27
+set_location_assignment PIN_J14 -to atbm
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -entity top -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -entity top -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -entity top -section_id Top
+set_location_assignment PIN_B8 -to usb_ulpi_clk
+set_location_assignment PIN_B3 -to usb_ulpi_stp
+set_location_assignment PIN_A3 -to usb_ulpi_nxt
+set_location_assignment PIN_C3 -to usb_ulpi_dir
+set_location_assignment PIN_B4 -to usb_ulpi_d[0]
+set_location_assignment PIN_A4 -to usb_ulpi_d[1]
+set_location_assignment PIN_B5 -to usb_ulpi_d[2]
+set_location_assignment PIN_A5 -to usb_ulpi_d[3]
+set_location_assignment PIN_B6 -to usb_ulpi_d[4]
+set_location_assignment PIN_A6 -to usb_ulpi_d[5]
+set_location_assignment PIN_B7 -to usb_ulpi_d[6]
+set_location_assignment PIN_A7 -to usb_ulpi_d[7]
+set_location_assignment PIN_A2 -to usb_phy_reset_n
+set_location_assignment PIN_F2 -to tps
+set_location_assignment PIN_L14 -to tps_ci
+set_location_assignment PIN_L13 -to tps_ci_o
+set_location_assignment PIN_F1 -to tps_o
+set_location_assignment PIN_J13 -to sony_demod
+set_location_assignment PIN_F13 -to sony_tuner
+set_location_assignment PIN_F14 -to lg
+set_location_assignment PIN_A15 -to sony_tuner_i2c_en
+set_location_assignment PIN_C14 -to io_scl
+set_location_assignment PIN_D14 -to io_sda
+set_location_assignment PIN_P2 -to lg_data
+set_location_assignment PIN_P1 -to lg_clk
+set_location_assignment PIN_R1 -to lg_valid
+set_location_assignment PIN_N2 -to lg_start
+set_location_assignment PIN_J2 -to sony_clk
+set_location_assignment PIN_J1 -to sony_data
+set_location_assignment PIN_K2 -to sony_start
+set_location_assignment PIN_K1 -to sony_valid
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -entity top -section_id Top
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
+set_global_assignment -name MIF_FILE ../usb3/usb2_descrip.mif
+set_global_assignment -name VERILOG_FILE joker_tv.v
 set_global_assignment -name VERILOG_FILE ../usb3/usb_top.v
 set_global_assignment -name VERILOG_FILE ../usb3/usb3_top.v
 set_global_assignment -name VERILOG_FILE ../usb3/usb3_scramble.v
@@ -101,8 +143,4 @@ set_global_assignment -name VERILOG_FILE ../opencores_i2c/i2c_master_bit_ctrl.v
 set_global_assignment -name VERILOG_FILE ../opencores_i2c/i2c_master_byte_ctrl.v
 set_global_assignment -name VERILOG_FILE ../opencores_i2c/opencores_i2c.v
 set_global_assignment -name VERILOG_FILE ../opencores_i2c/i2c_master_top.v
-set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
-set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
-set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
-set_global_assignment -name VERILOG_FILE joker_tv_pin.v
