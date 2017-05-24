@@ -95,6 +95,8 @@ set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -entity t
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
+set_global_assignment -name SDC_FILE joker_tv.sdc
+set_global_assignment -name QIP_FILE probe/synthesis/probe.qip
 set_global_assignment -name MIF_FILE ../usb3/usb2_descrip.mif
 set_global_assignment -name VERILOG_FILE joker_tv.v
 set_global_assignment -name VERILOG_FILE ../usb3/usb_top.v
