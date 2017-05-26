@@ -9,11 +9,12 @@
 //
 
 #include <stdio.h>
+#include <errno.h>
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
-// #define WIN32_LEAN_AND_MEAN 
-// #include <windows.h>	// just to ruffle jared's feathers
+#include <locale.h>
+#include <iconv.h>
 
 #define u8	unsigned char
 #define u16	unsigned short
@@ -353,11 +354,22 @@ void add_bos()
 	write_buf32(buf_3, z - buf_3);
 }
 
+#define BUFSZ 512
+
 void add_string(u8 idx, char* str)
 {
 	char temp[32];
-	wchar_t w_str[128];
+	wchar_t w_str[BUFSZ];
+	char * dst_str = (char*) w_str;
+	int ret = 0;
+	size_t dstlen = BUFSZ, inlen = 0;
 	u32 len;
+	iconv_t conv = iconv_open("UCS2", "ASCII");
+	if(conv < 0) {
+		printf("can't open iconv ! \n");
+		exit(1);
+	}
+
 	if(idx == 0) 
 		len = 4;		// string0 is fixed at 4 bytes for language code
 	else
@@ -369,15 +381,26 @@ void add_string(u8 idx, char* str)
 	sprintf(temp, "STRING%d", idx);
 	print_offsets(temp, 1, 1);
 
-	if(idx > 0) 
-		mbstowcs(w_str, str, 128);
-	else
+	if(idx > 0)  {
+		/* can't use mbstowcs because produce 4 byte encoded UTF strings
+		 * under Linux */
+		inlen = strlen(str);
+		ret = iconv(conv, &str, &inlen, &dst_str, &dstlen);
+		if (ret)
+		{
+			printf("can't convert string \n");
+			exit(1);
+		}
+	} else {
 		memcpy(&w_str[0], str, 2);
+	}
 
 	*a++ = len;
 	*a++ = 0x03;
 	memcpy(a, w_str, len-2);
 	write_buf(buf_2, len);
+	printf("adding string len=%d \n", len);
+	iconv_close(conv);
 }
 
 void add_set()
@@ -393,6 +416,7 @@ int main(int argc, char *argv[])
 	u32 temp1, temp2;
 	i_2 = 0;
 	i_3 = 0;
+
 
 	printf("\n* Daisho USB 3.0 / USB 2.0 descriptor export tool\n  by marshallh, 2013\n");
 
@@ -468,6 +492,7 @@ int main(int argc, char *argv[])
 					);
 
 	add_config_end();
+	printf("aospan: add_config_end \n");
 
 	// hack to print out CONFIG length
 	temp1 = i_2;
@@ -479,6 +504,7 @@ int main(int argc, char *argv[])
 	i_3 = temp2;
 
 	add_bos();
+	printf("aospan: add_bos\n");
 
 	// hack to print out BOS length
 	temp2 = i_3;

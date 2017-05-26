@@ -1,7 +1,7 @@
 set -e
 
-gcc -o usb3_mifgen-jokertv usb3_mifgen-jokertv.c -lm
+gcc -g -o usb3_mifgen-jokertv usb3_mifgen-jokertv.c -lm
 ./usb3_mifgen-jokertv
 cp usb2_descrip.mif ../joker_tv/
 
-echo "All done. Recompile Quartus project"
+echo "All done. usb2_descrip.mif file generated. Recompile Quartus project"
