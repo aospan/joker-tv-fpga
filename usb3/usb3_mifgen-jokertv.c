@@ -159,8 +159,9 @@ void add_device_descr(u16 usb_spec, u8 class_code, u8 subclass, u8 protocol_code
 	// usb spec 2.10
 	*a++ = 0x12;					// length
 	*a++ = 0x01;					// descriptor ID
+	// TODO: usb 3.0 fix !
 	// *((u16 *)a)++ = (usb_spec == 0x300) ? 0x210 : 0x200; // bcdUSB
-	*a++ = (usb_spec == 0x300) ? 0x10 : 0x00;
+	*a++ = 0x00;
 	*a++ = 0x02;
 
 	write_buf8(buf_2, 4); a = buf_2+2;
@@ -435,9 +436,12 @@ int main(int argc, char *argv[])
 	
 	add_device_descr(	0x300,		// USB spec number (auto fixed 2.10 for 2.0)
 									// put 0x200 if you only use USB 2.0 core
-						0xFF,		// Class Code
-						0xFF,		// Subclass
-						0xFF,		// Protocol Code
+						// 0xFF,		// Class Code
+						// 0xFF,		// Subclass
+						// 0xFF,		// Protocol Code
+						239 /* 0xFF */,		// Class Code
+						2 /* 0xFF */,		// Subclass
+						1 /* 0xFF */,		// Protocol Code
 						64,			// Endpoint0 Max packet (ignored for 3.0)
 						0x2D6B,		// Vendor ID
 						0x7777,		// Product ID
