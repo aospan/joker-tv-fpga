@@ -63,15 +63,7 @@ output	wire	[2:0]	dbg_pkt_type
 
 );
 
-reg [31:0] source;
-reg [31:0] probe;
-	
-`ifndef MODEL_TECH
-probe	probe_inst(
-	.probe( probe ),
-	.source(source)
-);
-`endif
+
 
 	// edge detection / synch
 	reg 			reset_1, reset_2;
@@ -235,8 +227,8 @@ always @(posedge phy_clk) begin
 	{reset_2, reset_1} <= {reset_1, reset_n};
 	
 	
-	probe[31] <= ~probe[31];
-	probe[5:0] <= state;
+	// probe[31] <= ~probe[31];
+	// probe[5:0] <= state;
 	
 	if(in_latch) begin
 		// delay incoming data by 2 bytes
@@ -276,7 +268,7 @@ always @(posedge phy_clk) begin
 		`ifdef MODEL_TECH
 		sel_endp <= 2'b11; /* EP3 */
 		`endif
-		probe <= 0;
+		// probe <= 0;
 		
 	end
 	ST_RST_1: begin
@@ -294,7 +286,7 @@ always @(posedge phy_clk) begin
 				// check validity of PID
 				if(pid_valid) begin
 				
-					probe[30] <= ~probe[30];
+					// probe[30] <= ~probe[30];
 					// save it for later
 					pid_stored <= pid;
 					pid_last <= pid_stored;
@@ -409,7 +401,7 @@ always @(posedge phy_clk) begin
 		// default is to wait for EOP
 		state <= ST_WAIT_EOP;
 		
-		probe[29] <= ~probe[29];
+		// probe[29] <= ~probe[29];
 
 		// next default is confirm token CRC5
 		if(packet_token_crc5 != next_crc5) begin
@@ -420,13 +412,13 @@ always @(posedge phy_clk) begin
 		case(pid_stored)
 		PID_TOKEN_SOF: begin
 			dbg_frame_num <= packet_token_frame;
-			probe[28] <= ~probe[28];
+			// probe[28] <= ~probe[28];
 		end
 		endcase
 		
 		// only parse tokens at our address
 		if(packet_token_addr == local_dev_addr) begin
-			probe[27] <= ~probe[27];
+			// probe[27] <= ~probe[27];
 			case(pid_stored)
 			PID_TOKEN_IN: begin
 				// switch protocol layer to proper endpoint
@@ -505,7 +497,7 @@ always @(posedge phy_clk) begin
 	ST_OUT_PRE_1: begin
 		// wait for protocol FSM/endpoint FSM to be ready (usually already is)
 		if(buf_out_hasdata) begin
-			probe[26] <= ~probe[26];
+			// probe[26] <= ~probe[26];
 			// good to go
 			bc <= buf_out_len + 11'h2;
 			// note: needs more work to allow
@@ -516,7 +508,7 @@ always @(posedge phy_clk) begin
 		end else begin
 			// wait a bit
 			if(dc == 31) begin
-				probe[25] <= ~probe[25];
+				// probe[25] <= ~probe[25];
 				// not ready, NAK
 				//if(bytes_sent != bytes_tosend) begin
 					pid_send <= PID_HAND_NAK;

@@ -150,7 +150,18 @@ output	reg				err_setup_pkt
 	
 	reg		[6:0]	dc;
 	
-					
+/*	reg [31:0] source;
+	reg [31:0] probe;
+	reg flag;
+	
+`ifndef MODEL_TECH
+probe	probe_inst(
+	.probe( probe ),
+	.source(source)
+);
+`endif
+	*/
+	
 always @(posedge phy_clk) begin
 
 	// synchronizers
@@ -181,6 +192,8 @@ always @(posedge phy_clk) begin
 		ready_in <= 1;
 		
 		state_in <= ST_RST_1;
+		
+		// flag <= 0;
 	end
 	ST_RST_1: begin
 		state_in <= ST_IDLE;
@@ -264,12 +277,15 @@ always @(posedge phy_clk) begin
 		16'h0100: begin
 			// device descriptor
 			descrip_addr_offset <= DESCR_USB2_DEVICE;
+
 		end
 		16'h0200: begin
 			// config descriptor
 			descrip_addr_offset <= DESCR_USB2_CONFIG;
 			desired_out_len <= DESCR_USB2_CONFIG_LEN;
 			state_in <= ST_RDLEN_2;
+			// probe[7:0] <= DESCR_USB2_CONFIG;
+			// flag <= 1;
 		end
 		16'h0300: begin
 			// string: languages
@@ -278,6 +294,8 @@ always @(posedge phy_clk) begin
 		16'h0301: begin
 			// string: manufacturer
 			descrip_addr_offset <= DESCR_USB2_STRING1;
+			// probe[7:0] <= DESCR_USB2_STRING1;
+			// flag <= 1;
 		end
 		16'h0302: begin
 			// string: product name
@@ -305,6 +323,9 @@ always @(posedge phy_clk) begin
 		// pick off the first byte at the pointer
 		desired_out_len <= buf_out_q;
 		state_in <= ST_RDLEN_2;
+		
+		// if (flag > 0)
+			// probe[15:8] <= buf_out_q;
 	end
 	ST_RDLEN_2: begin
 		// pick smaller of the setup packet's wanted length and the stored length
@@ -313,6 +334,11 @@ always @(posedge phy_clk) begin
 		ready_in <= 1;
 		hasdata_out <= 1;
 		state_in <= ST_IDLE;
+		
+		/* if (flag > 0) begin
+			probe[23:16] <= packet_out_len < desired_out_len ? packet_out_len : desired_out_len;
+			flag <= 0;
+		end */
 	end
 	ST_REQ_GETCONFIG: begin
 		// GET DEVICE CONFIGURATION
