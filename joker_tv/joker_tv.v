@@ -31,6 +31,26 @@ module joker_tv
 (
 input    wire           clk_27,
 
+/* CI pins */
+input		wire	ci_ireq_n,
+input		wire	ci_cd1,
+input		wire	ci_cd2,
+input		wire	ci_overcurrent_n,
+output	wire	ci_reset_oe_n,
+output	wire	ci_reset,
+output	wire	ci_data_buf_oe_n,
+output	wire	[14:0] ci_a,
+inout		wire	[7:0] ci_d,
+output	wire	ci_bus_dir,
+input		wire	ci_wait_n,
+output	wire	ci_iowr_n,
+output	wire	ci_oe_n,
+output	wire	ci_we_n,
+output	wire	ci_d_en,
+output	wire	ci_reg_n,
+output	wire	ci_ce_n,
+
+
 /* LG TS pins */
 input		wire	lg_clk,
 input		wire	lg_data,
@@ -51,7 +71,6 @@ output   wire  sony_demod,
 output   wire  tps,
 output   wire  tps_ci,
 inout    wire  tps_o,
-inout    wire  tps_ci_o,
 
 inout    wire           io_scl,
 inout    wire           io_sda,
@@ -313,6 +332,8 @@ assign   lg = reset_ctrl[2];
 assign   sony_tuner = reset_ctrl[1];
 assign   sony_demod = reset_ctrl[0];
  
+
+ 
 ts_proxy ts_proxy_inst (
                 .clk( usb_ulpi_clk /* clk_50 */),
                 .atsc_clock(lg_clk),
@@ -333,11 +354,11 @@ ts_proxy ts_proxy_inst (
 					 .ep3_ext_buf_out_arm(ep3_ext_buf_out_arm),
                 .commit_len( isoc_commit_len  /* 11'd1024 */ /* 11'd512 */ /* 376 */ /*188 */),
 					 .insel(insel),
-					 // .tslost(probe_rfa[7:0]),
-					 // .acked(probe_rfa[15:8]),
-					 // .missed(probe_rfa[23:16]),
-					 // .state(probe_rfa[27:24]),
-					 // .fifo_clean(probe_rfa[31:28]),
+					 //.tslost(probe[7:0]),
+					 //.acked(probe[15:8]),
+					 //.missed(probe[23:16]),
+					 //.state(probe[27:24]),
+					 //.fifo_clean(probe[31:28]),
                 .reset(reset)
 );
 
@@ -348,7 +369,98 @@ aospan_pll  apll (
 	.c1               (clk_100)
 );
 
+	reg [31:0] source;
+	reg [31:0] probe;
+	
+`ifndef MODEL_TECH
+probe	probe_inst(
+	.probe( probe ),
+	.source(source)
+);
+`endif
 
+/* CI - common interface */
+/* ci_control ci_control_inst (
+	.clk(clk_50),
+	.rst(reset),
+	.ci_ireq_n(ci_ireq_n),
+	.ci_cd_n( {ci_cd1, ci_cd2} ),
+	.ci_overcurrent_n (ci_overcurrent_n),
+	.ci_reset_oe_n(ci_reset_oe_n),
+	.ci_reset(ci_reset),
+	.cam_stschg(probe[0]),
+	.cam_present(probe[1]),
+	.cam_reset(probe[2]),
+	.cam_ready(probe[3]),
+	.cam_error(probe[4]),
+	.cam_ovcp(probe[5]),
+	.cam_busy(probe[6]),
+	.cam_interrupt(probe[7])
+); */
+
+reg 	cam_read;
+wire	cam_waitreq;
+reg	[7:0]	cam_readdata;
+
+ci_bridge ci_bridge_inst (
+	.clk(clk_50),
+	.rst(reset),
+	
+	/* only first CI (cia) used */
+	.cia_ireq_n(ci_ireq_n),
+	.cia_cd_n( {ci_cd1, ci_cd2} ),
+	.cia_overcurrent_n (ci_overcurrent_n),
+	.cia_reset_buf_oe_n(ci_reset_oe_n),
+	.cia_reset(ci_reset),
+	.cia_data_buf_oe_n(ci_data_buf_oe_n),
+	.ci_a(ci_a),
+	.ci_d_in(ci_d),
+	//.ci_d_out(ci_d),
+	.ci_bus_dir(ci_bus_dir),
+	.cia_wait_n(ci_wait_n),
+	.ci_iowr_n(ci_iowr_n),
+	.ci_oe_n(ci_oe_n),
+	.ci_we_n(ci_we_n),
+	.cam0_ready(probe[9]),
+	.cam0_fail(probe[10]),
+	.cam0_bypass(probe[11]),
+	.ci_d_en(probe[8] /* ci_d_en */),
+	.cam_readdata(cam_readdata),
+	.cam_read(cam_read),
+	.cam_waitreq(cam_waitreq),
+	.cam_address(source[17:0]),
+	.ci_reg_n(ci_reg_n),
+	.cia_ce_n(ci_ce_n)	
+);
+
+reg source_1;
+
+always @(posedge clk_50) begin
+	source_1 <= source[18];
+	probe[12] <= cam_read;
+	
+	if (cam_read && ~cam_waitreq)
+	begin
+		cam_read <= 0;
+		probe[7:0] <= cam_readdata;
+		probe[31:24] <= ci_d;
+	end
+	
+	if(source[18] && ~source_1)
+	begin
+		cam_read <= 1;
+	end
+end
+
+/* 
+always @(posedge clk_50) begin
+	probe[8]  <= ci_overcurrent_n;
+	probe[9]  <= ~ci_overcurrent_n;
+	probe[10] <= ci_ireq_n;
+	probe[11] <= ci_cd1;
+	probe[12] <= ci_cd2;
+end
+*/
 
 reg      reset;
 
@@ -405,6 +517,7 @@ reg   [31:0]   count_us;
 
 parameter count_board_reset = 50000000;   // 1sec
 
+
 reg   [31:0]   count_1;
    
 initial begin
@@ -416,8 +529,9 @@ initial begin
    count_us <= 0;
 	wr_cnt <= 0;
 	c_state <= 0;
-	reset_ctrl <= 8'hF3;
+	reset_ctrl <= 8'hB3;
 	isoc_commit_len <= 11'd512;
+	cam_read <= 0;
 end
 
 always @(posedge clk_50) begin
