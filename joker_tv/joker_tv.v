@@ -121,8 +121,38 @@ output   wire           usb_out_enable
 );
 
 
+joker_control joker_control_inst (
+	.clk(usb_ulpi_clk /* clk_50 */),
+   .reset(reset),
+	
+	/* EP2 OUT */
+   .buf_out_hasdata(buf_out_hasdata), 
+	.buf_out_len(buf_out_len), 
+	.buf_out_q(buf_out_q),
+	.buf_out_addr(buf_out_addr),
+	.buf_out_arm_ack(buf_out_arm_ack),
+	.buf_out_arm(buf_out_arm),
+	
+	/* EP1 IN */
+   .usb_in_commit_ack(usb_in_commit_ack),
+   .usb_in_commit(usb_in_commit),
+	.usb_in_ready(usb_in_ready),
+	.usb_in_addr(usb_in_addr),
+	.usb_in_data(usb_in_data),
+	.usb_in_wren(usb_in_wren),
+	.usb_in_commit_len(usb_in_commit_len),
+	
+	/* I2C pins */
+	.io_scl(io_scl),
+	.io_sda(io_sda),
+	
+	/* staff that we care about */
+	.reset_ctrl(reset_ctrl),
+	.insel(insel),
+	.isoc_commit_len(isoc_commit_len)
+);
 
-
+/*
 reg wb_we_i;
 reg wb_stb_i;
 reg   [31:0]   count_i2c;
@@ -149,14 +179,14 @@ opencores_i2c i2c_inst (
    .scl_pad_io  (io_scl),
    .sda_pad_io  (io_sda)
 );
-
+*/
 
 /* aospan usb EP2 OUT */
 wire buf_out_hasdata;
 wire  [7:0] buf_out_q;
 wire  [9:0] buf_out_len;
-reg   [8:0] buf_out_addr; /* input */
-reg buf_out_arm;
+wire 	[10:0] buf_out_addr; /* input */
+wire buf_out_arm;
 wire buf_out_arm_ack;
 
 reg [7:0] dc;
@@ -169,158 +199,10 @@ reg [1:0] det_ack;
 wire acked;
 assign acked = (det_ack == 2'b10);
 reg [7:0] wr_cnt = 8'b00000000;
-reg [1:0] insel;
-reg [10:0] isoc_commit_len;
-
-
-   // states
-	reg [3:0] c_state = 4'b0000;
-	parameter ST_IDLE=0, ST_WAIT_ACK=1, ST_READ=2, ST_WRITE=3, 
-		ST_READ_ADDR=4, ST_READ_DATA=5, ST_WAIT_ACK_I2C=6, ST_SET_ADDR=7, 
-		ST_READ_FROM_I2C = 8, ST_READ_FROM_I2C2 = 9;
-
-/* CONTROL REGISTERS and I2C  part*/
-always @(posedge clk_50) begin
-   dc <= dc + 1'b1;
-	dc_rd <= dc_rd + 1'b1;
-
-	if (dc_rd == 254)
-		dc_rd_wrap <= dc_rd_wrap + 1;
-			
-	det_ack <= { det_ack[0], buf_out_arm_ack };
-			
-	if (usb_in_commit_ack)
-		usb_in_commit <= 0;
-				
-   case (c_state)
-		ST_IDLE:
-		begin	
-		   if (buf_out_hasdata) begin
-				dc <= 0;
-				c_state <= ST_READ;
-			end
-
-		end
-		
-		ST_READ: 
-		begin
-		   /*  OUT EP2 ready to read data from */
-			/* read first byte */
-			c_state <= ST_SET_ADDR;
-		end
-		
-		ST_SET_ADDR:
-		begin
-			buf_out_addr <= 0;
-			dc_rd <= 0;
-			dc_rd_wrap <= 0;
-			c_state <= ST_READ_ADDR;
-		end
-		
-		ST_READ_ADDR:
-		begin
-			if ( dc_rd > 3)
-			begin
-				i2c_addr <= buf_out_q[7:0];
-				c_state <= ST_READ_DATA;
-				buf_out_addr <= 1;
-				dc_rd <= 0;
-				dc_rd_wrap <= 0;
-			end
-		end
-		
-		ST_READ_DATA:
-		begin
-				if ( dc_rd > 3)
-				begin
-					i2c_dat <= buf_out_q[7:0];
-					c_state <= ST_WAIT_ACK;
-				end
-			// end
-      end
-		
-		ST_WAIT_ACK:
-		begin
-			// tell EP that we don't need this data anymore
-			buf_out_arm <= 1;
-			
-			/* negative edge: disarm ep2 OUT */
-			if ( acked ) begin
-				buf_out_arm <= 0;
-				dc_rd <= 0;
-				dc_rd_wrap <= 0;
-				
-				if ( i2c_addr == 5) begin
-					/* address 5 for reading from i2c */
-					c_state <= ST_READ_FROM_I2C;
-				end
-				else if ( i2c_addr == 6) begin
-					/* address 6 for writing reset_ctrl */
-					c_state <= ST_IDLE;
-					reset_ctrl <= i2c_dat;
-				end
-				else if ( i2c_addr == 7) begin
-					/* address 7 for TS input selection */
-					c_state <= ST_IDLE;
-					insel <= i2c_dat;
-				end
-				else if ( i2c_addr == 8) begin
-					/* address 7 for USB ISOC transaction len  HI */
-					c_state <= ST_IDLE;
-					isoc_commit_len[10:8] <= i2c_dat;
-				end
-				else if ( i2c_addr == 9) begin
-					/* address 7 for USB ISOC transaction len  LO */
-					c_state <= ST_IDLE;
-					isoc_commit_len[7:0] <= i2c_dat;
-				end
-				else begin				
-					i2c_we <= 1'b1;
-					i2c_stb <= 1'b1;
-					c_state <= ST_WAIT_ACK_I2C;
-				end
-			end
-		end
-		
-      ST_WAIT_ACK_I2C:
-		begin		
-			if ( wb_ack_o ) begin
-				/* remove write request from wishbone */
-				i2c_we <= 0;
-				i2c_stb <= 0;				
-				c_state <= ST_IDLE;
-				wr_cnt <= wr_cnt + 1'b1;
-			end
-		end
-		
-		ST_READ_FROM_I2C:
-		begin
-				i2c_addr <= i2c_dat[2:0]; /* 'b100 sr - status reg, 'b011 - received byte, etc */
-				i2c_we <= 0;
-				i2c_stb <= 0;
-				dc_rd <= 0;
-				dc_rd_wrap <= 0;
-				c_state <= ST_READ_FROM_I2C2;
-		end
-		
-		ST_READ_FROM_I2C2:
-		begin
-			if (dc_rd > 3) begin
-				usb_in_data <= wb_dat_o;
-				usb_in_wren <= 1;
-				usb_in_commit_len <= 1;
-				usb_in_commit <= 1;
-				c_state <= ST_IDLE;
-			end
-		end
-		
-		default begin
-			c_state <= ST_IDLE;
-		end
-   endcase
-end
-
-reg [7:0] reset_ctrl = 8'hF3;
+wire [1:0] insel;
+wire [10:0] isoc_commit_len;
+wire	[7:0] reset_ctrl;
+// reg [7:0] reset_ctrl = 8'hF3;
 	
 // aospan: rf
 assign   sony_tuner_i2c_en = reset_ctrl[7];
@@ -352,12 +234,13 @@ ts_proxy ts_proxy_inst (
                 .ep3_usb_in_ready(ep3_usb_in_ready),
 					 .ep3_usb_in_commit_ack(ep3_usb_in_commit_ack),
 					 .ep3_ext_buf_out_arm(ep3_ext_buf_out_arm),
-                .commit_len( isoc_commit_len  /* 11'd1024 */ /* 11'd512 */ /* 376 */ /*188 */),
+                .commit_len(isoc_commit_len),
 					 .insel(insel),
-					 //.tslost(probe[7:0]),
-					 //.acked(probe[15:8]),
-					 //.missed(probe[23:16]),
-					 //.state(probe[27:24]),
+					 //.pkts_cnt(probe[15:0]),
+					 //.tslost(probe[23:16]),
+					 // .acked(probe[15:8]),
+					 // .missed(probe[23:16]),
+					 // .state(probe[27:24]),
 					 //.fifo_clean(probe[31:28]),
                 .reset(reset)
 );
@@ -369,34 +252,18 @@ aospan_pll  apll (
 	.c1               (clk_100)
 );
 
+
 	reg [31:0] source;
-	reg [31:0] probe;
-	
+	wire [31:0] probe;
+
+/*
 `ifndef MODEL_TECH
 probe	probe_inst(
 	.probe( probe ),
 	.source(source)
 );
 `endif
-
-/* CI - common interface */
-/* ci_control ci_control_inst (
-	.clk(clk_50),
-	.rst(reset),
-	.ci_ireq_n(ci_ireq_n),
-	.ci_cd_n( {ci_cd1, ci_cd2} ),
-	.ci_overcurrent_n (ci_overcurrent_n),
-	.ci_reset_oe_n(ci_reset_oe_n),
-	.ci_reset(ci_reset),
-	.cam_stschg(probe[0]),
-	.cam_present(probe[1]),
-	.cam_reset(probe[2]),
-	.cam_ready(probe[3]),
-	.cam_error(probe[4]),
-	.cam_ovcp(probe[5]),
-	.cam_busy(probe[6]),
-	.cam_interrupt(probe[7])
-); */
+*/
 
 reg 	cam_read;
 wire	cam_waitreq;
@@ -421,10 +288,10 @@ ci_bridge ci_bridge_inst (
 	.ci_iowr_n(ci_iowr_n),
 	.ci_oe_n(ci_oe_n),
 	.ci_we_n(ci_we_n),
-	.cam0_ready(probe[9]),
-	.cam0_fail(probe[10]),
-	.cam0_bypass(probe[11]),
-	.ci_d_en(probe[8] /* ci_d_en */),
+	// .cam0_ready(probe[9]),
+	// .cam0_fail(probe[10]),
+	// .cam0_bypass(probe[11]),
+	// .ci_d_en(probe[8] /* ci_d_en */),
 	.cam_readdata(cam_readdata),
 	.cam_read(cam_read),
 	.cam_waitreq(cam_waitreq),
@@ -435,6 +302,7 @@ ci_bridge ci_bridge_inst (
 
 reg source_1;
 
+/*
 always @(posedge clk_50) begin
 	source_1 <= source[18];
 	probe[12] <= cam_read;
@@ -452,14 +320,6 @@ always @(posedge clk_50) begin
 	end
 end
 
-/* 
-always @(posedge clk_50) begin
-	probe[8]  <= ci_overcurrent_n;
-	probe[9]  <= ~ci_overcurrent_n;
-	probe[10] <= ci_ireq_n;
-	probe[11] <= ci_cd1;
-	probe[12] <= ci_cd2;
-end
 */
 
 reg      reset;
@@ -528,9 +388,8 @@ initial begin
    pulse_1us <= 0;
    count_us <= 0;
 	wr_cnt <= 0;
-	c_state <= 0;
-	reset_ctrl <= 8'hB3;
-	isoc_commit_len <= 11'd512;
+	// reset_ctrl <= 8'hB3;
+	// isoc_commit_len <= 11'd512;
 	cam_read <= 0;
 end
 
@@ -636,12 +495,12 @@ wire     [ 10:0]   ep3_usb_in_commit_len;
 wire              ep3_usb_in_commit_ack;
 wire					ep3_ext_buf_out_arm;
 
-reg     [ 8:0]   usb_in_addr;
-reg     [ 7:0]   usb_in_data;
-reg              usb_in_wren;
+wire     [ 8:0]   usb_in_addr;
+wire     [ 7:0]   usb_in_data;
+wire              usb_in_wren;
 wire              usb_in_ready;
-reg              usb_in_commit;
-reg     [ 9:0]   usb_in_commit_len;
+wire              usb_in_commit;
+wire     [ 9:0]   usb_in_commit_len;
 wire              usb_in_commit_ack;
 
 wire     [ 1:0]   usb1_dbg_linestate;
