@@ -26,6 +26,7 @@ module ts_proxy (
 	output	wire	[3:0]		state,
 	output	wire	[3:0]		dc,
 	output	reg	[3:0]		fifo_clean,
+	output	reg	[15:0]	pkts_cnt,
 
 	/* USB Endpoint 3 IN */
 	output	wire	[10:0]		ep3_usb_in_addr,
@@ -108,6 +109,18 @@ assign	state = ts_samp_state;
 assign	dc = cnt_p[3:0] /* ts_dc */;
 
 
+reg [31:0] source;
+reg [31:0] probe;
+	
+/*
+`ifndef MODEL_TECH
+probe	probe_inst(
+	.probe( probe ),
+	.source(source)
+);
+`endif
+*/
+
 always @(posedge clk ) begin
 		ts_dc <= ts_dc + 1;
 
@@ -117,11 +130,15 @@ always @(posedge clk ) begin
 		fifo_aclr <= 0;
 		fifo_wrreq	<= 0;
 		ep3_usb_in_commit <= 0;
+		
+		probe[10:0] <= commit_len;
+		probe[12:11] <= insel;
 
 		case (ts_fifo_state)
 	       ST_FIFO_IDLE:
 	       begin	
 	       if (dval) begin
+				
 		       if (fifo_wrfull) begin
 			       tslost_cnt <= tslost_cnt + 1;
 		       end
@@ -148,7 +165,9 @@ always @(posedge clk ) begin
 					fifo_aclr <= 1;
 				end
 				else if (~fifo_rdempty && ep3_usb_in_ready ) begin
+					probe[31] <= ~probe[31];
 					fifo_rdreq <= 1;
+					pkts_cnt <= pkts_cnt + 1;
 					// wren	<= 1;
 					ts_samp_state <= ST_TS_WRITE;
 				end
@@ -156,9 +175,10 @@ always @(posedge clk ) begin
 
        ST_TS_WRITE:
        begin
+			probe[30] <= ~probe[30];
 	       wren	<= 1;
 	       ts_samp_state <= ST_TS_COMMIT;
-	end
+		end
 			
        ST_TS_COMMIT:
        begin
@@ -175,6 +195,7 @@ always @(posedge clk ) begin
 				// ep3_ext_buf_out_arm <= 1; //hack
 		 
 	       if (cnt_p == commit_len - 1) begin
+				probe[29] <= ~probe[29];
 	       // if (cnt_p == commit_len) begin
 		       cnt_p <= 0;
 		       // ts_samp_state <= ST_TS_COMMIT;
@@ -183,6 +204,7 @@ always @(posedge clk ) begin
 				  ts_dc <= 0;
 	       end
 	       else begin
+				probe[28] <= ~probe[28];
 		       cnt_p <= cnt_p + 1;
 		       ts_samp_state <= ST_TS_IDLE;
 	       end
@@ -207,6 +229,7 @@ always @(posedge clk ) begin
 
        ST_TS_WAIT_ACK:
        begin
+				probe[27] <= ~probe[27];
 	       if ( ts_dc > 5 )
 		       missed_ack <= missed_ack + 1;
 
@@ -214,6 +237,7 @@ always @(posedge clk ) begin
 		       ep3_usb_in_commit <= 0;
 		       acked <= acked + 1;
 		       ts_samp_state <= ST_TS_IDLE;
+				 probe[26] <= ~probe[26];
 	       end
        end
 	endcase
@@ -224,6 +248,8 @@ always @(posedge clk ) begin
 		wren	<= 0;
 		ep3_usb_in_commit <= 0;
 		tslost_cnt <= 0;
+		fifo_clean <= 0;
+		probe <= 0;
 	end
 end
 
