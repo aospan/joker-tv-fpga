@@ -35,7 +35,6 @@ input    wire           clk_27,
 input		wire	ci_ireq_n,
 input		wire	ci_cd1,
 input		wire	ci_cd2,
-input		wire	ci_overcurrent_n,
 output	wire	ci_reset_oe_n,
 output	wire	ci_reset,
 output	wire	ci_data_buf_oe_n,
@@ -50,6 +49,21 @@ output	wire	ci_d_en,
 output	wire	ci_reg_n,
 output	wire	ci_ce_n,
 
+/* LEDs 
+	LED[0] - green CI
+	LED[1] - red CI
+	LED[3] - green USB
+	LED[4] - red USB
+*/
+output	wire	[4:0] LED,
+
+/* resets */
+output wire	TU_IIC0_EN, /* Sony tuner i2c gate */
+output wire	[1:0] SW_nEN, /* CI power, 5V power for TERR antenna  */
+output wire	FE_DTMB_nRST, /* Altobeam demod */
+output wire	FE_ATSC_nRST, /* LG demod */
+output wire	FE_TU_nRST, /* Sony tuner */
+output wire	FE_DVB_nRST, /* Sony demod */
 
 /* LG TS pins */
 input		wire	lg_clk,
@@ -63,19 +77,21 @@ input		wire	sony_data,
 input		wire	sony_valid,
 input		wire	sony_start,
 
-output   wire  atbm,
+/* output   wire  atbm,
 output   wire  lg,
 output   wire  sony_tuner,
 output   wire  sony_tuner_i2c_en,
 output   wire  sony_demod,
-output   wire  tps,
-output   wire  tps_ci,
-inout    wire  tps_o,
+output   wire  tps_reset_n,
+output   wire  tps_ci_reset_n, */
 
+/* overcurrent */
+input    wire  tps_overcurrent_n,
+input		wire	ci_overcurrent_n,
+
+/* I2C */
 inout    wire           io_scl,
 inout    wire           io_sda,
-output   wire           io_reset_n,
-input    wire           io_int_n,
 
 
 // USB: PIPE
@@ -146,40 +162,40 @@ joker_control joker_control_inst (
 	.io_scl(io_scl),
 	.io_sda(io_sda),
 	
+	/* CI pins */
+	.ci_ireq_n(ci_ireq_n),
+	.ci_cd1(ci_cd1),
+	.ci_cd2(ci_cd2),
+	.ci_overcurrent_n(ci_overcurrent_n),
+	.ci_reset_oe_n(ci_reset_oe_n),
+	.ci_reset(ci_reset),
+	.ci_data_buf_oe_n(ci_data_buf_oe_n),
+	.ci_a(ci_a),
+	.ci_d(ci_d),
+	.ci_bus_dir(ci_bus_dir),
+	.ci_wait_n(ci_wait_n),
+	.ci_iowr_n(ci_iowr_n),
+	.ci_oe_n(ci_oe_n),
+	.ci_we_n(ci_we_n),
+	.ci_d_en(ci_d_en),
+	.ci_reg_n(ci_reg_n),
+	.ci_ce_n(ci_ce_n),
+	
 	/* staff that we care about */
 	.reset_ctrl(reset_ctrl),
 	.insel(insel),
-	.isoc_commit_len(isoc_commit_len)
+	.isoc_commit_len(isoc_commit_len),
+	.cam0_ready(cam0_ready),
+	.cam0_fail(cam0_fail)
 );
 
-/*
-reg wb_we_i;
-reg wb_stb_i;
-reg   [31:0]   count_i2c;
-
-reg i2c_we;
-reg i2c_stb;
-wire wb_ack_o;
-wire wb_inta_o;
-wire wb_rst_i;
-reg [7:0] i2c_addr;
-reg [7:0] i2c_dat;
-wire [7:0] wb_dat_o;
-
-opencores_i2c i2c_inst (
-   .wb_clk_i (clk_50),
-   .wb_rst_i ( wb_rst_i ),
-   .wb_dat_i ( i2c_dat ),
-   .wb_adr_i ( i2c_addr[2:0] ),
-   .wb_we_i ( i2c_we ),
-   .wb_stb_i ( i2c_stb ),
-   .wb_dat_o ( wb_dat_o ),
-   .wb_ack_o ( wb_ack_o ),
-   .wb_inta_o ( wb_inta_o ),
-   .scl_pad_io  (io_scl),
-   .sda_pad_io  (io_sda)
-);
-*/
+/* CI stuff */
+wire cam0_ready;
+wire cam0_fail;
+assign LED[0] = ~cam0_ready; // GREEN for CI
+assign LED[1] = ~cam0_fail; // RED for CI
+assign LED[3] = ~usb_configured; // GREEN for USB
+assign LED[4] = usb_configured;
 
 /* aospan usb EP2 OUT */
 wire buf_out_hasdata;
@@ -204,17 +220,18 @@ wire [10:0] isoc_commit_len;
 wire	[7:0] reset_ctrl;
 // reg [7:0] reset_ctrl = 8'hF3;
 	
-// aospan: rf
-assign   sony_tuner_i2c_en = reset_ctrl[7];
-assign   tps_ci = reset_ctrl[6];
-assign   tps = reset_ctrl[5];
-assign   usb_phy_reset_n = reset_ctrl[4];
-assign   atbm = reset_ctrl[3];
-assign   lg = reset_ctrl[2];
-assign   sony_tuner = reset_ctrl[1];
-assign   sony_demod = reset_ctrl[0];
+/* '1' - mean in reset state (disabled)
+ * '0' - mean in unreset state  (enabled) */
+assign   TU_IIC0_EN = ~reset_ctrl[7]; /* Sony tuner i2c gate */
+assign   SW_nEN[0] = reset_ctrl[6]; /* CI power */
+assign   SW_nEN[1] = reset_ctrl[5]; /* 5V power for TERR antenna */
+assign   FE_DTMB_nRST = ~reset_ctrl[3]; /* Altobeam demod */
+assign   FE_ATSC_nRST = ~reset_ctrl[2]; /* LG demod */
+assign   FE_TU_nRST = ~reset_ctrl[1]; /* Sony tuner */
+assign   FE_DVB_nRST = ~reset_ctrl[0]; /* Sony demod */
  
-
+/* always force USB unreset */
+assign usb_phy_reset_n = 1;
  
 ts_proxy ts_proxy_inst (
                 .clk( usb_ulpi_clk /* clk_50 */),
@@ -253,74 +270,16 @@ aospan_pll  apll (
 );
 
 
-	reg [31:0] source;
-	wire [31:0] probe;
+reg [31:0] source;
+wire [31:0] probe;
 
-/*
 `ifndef MODEL_TECH
 probe	probe_inst(
 	.probe( probe ),
 	.source(source)
 );
 `endif
-*/
 
-reg 	cam_read;
-wire	cam_waitreq;
-reg	[7:0]	cam_readdata;
-
-ci_bridge ci_bridge_inst (
-	.clk(clk_50),
-	.rst(reset),
-	
-	/* only first CI (cia) used */
-	.cia_ireq_n(ci_ireq_n),
-	.cia_cd_n( {ci_cd1, ci_cd2} ),
-	.cia_overcurrent_n (ci_overcurrent_n),
-	.cia_reset_buf_oe_n(ci_reset_oe_n),
-	.cia_reset(ci_reset),
-	.cia_data_buf_oe_n(ci_data_buf_oe_n),
-	.ci_a(ci_a),
-	.ci_d_in(ci_d),
-	//.ci_d_out(ci_d),
-	.ci_bus_dir(ci_bus_dir),
-	.cia_wait_n(ci_wait_n),
-	.ci_iowr_n(ci_iowr_n),
-	.ci_oe_n(ci_oe_n),
-	.ci_we_n(ci_we_n),
-	// .cam0_ready(probe[9]),
-	// .cam0_fail(probe[10]),
-	// .cam0_bypass(probe[11]),
-	// .ci_d_en(probe[8] /* ci_d_en */),
-	.cam_readdata(cam_readdata),
-	.cam_read(cam_read),
-	.cam_waitreq(cam_waitreq),
-	.cam_address(source[17:0]),
-	.ci_reg_n(ci_reg_n),
-	.cia_ce_n(ci_ce_n)	
-);
-
-reg source_1;
-
-/*
-always @(posedge clk_50) begin
-	source_1 <= source[18];
-	probe[12] <= cam_read;
-	
-	if (cam_read && ~cam_waitreq)
-	begin
-		cam_read <= 0;
-		probe[7:0] <= cam_readdata;
-		probe[31:24] <= ci_d;
-	end
-	
-	if(source[18] && ~source_1)
-	begin
-		cam_read <= 1;
-	end
-end
-
-*/
 
 reg      reset;
 
@@ -388,9 +347,6 @@ initial begin
    pulse_1us <= 0;
    count_us <= 0;
 	wr_cnt <= 0;
-	// reset_ctrl <= 8'hB3;
-	// isoc_commit_len <= 11'd512;
-	cam_read <= 0;
 end
 
 always @(posedge clk_50) begin

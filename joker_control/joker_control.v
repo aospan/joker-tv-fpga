@@ -35,10 +35,31 @@ module joker_control
 	inout		wire	io_scl,
 	inout		wire	io_sda,
 	
+	/* CI pins */
+	input		wire	ci_ireq_n,
+	input		wire	ci_cd1,
+	input		wire	ci_cd2,
+	input		wire	ci_overcurrent_n,
+	output	wire	ci_reset_oe_n,
+	output	wire	ci_reset,
+	output	wire	ci_data_buf_oe_n,
+	output	wire	[14:0] ci_a,
+	inout		wire	[7:0] ci_d,
+	output	wire	ci_bus_dir,
+	input		wire	ci_wait_n,
+	output	wire	ci_iowr_n,
+	output	wire	ci_oe_n,
+	output	wire	ci_we_n,
+	output	wire	ci_d_en,
+	output	wire	ci_reg_n,
+	output	wire	ci_ce_n,
+	
 	/* staff that we care about */
 	output	reg	[7:0]	reset_ctrl,
 	output	reg	[7:0]	insel,
-	output	reg	[10:0] isoc_commit_len
+	output	reg	[10:0] isoc_commit_len,
+	output	wire	cam0_ready,
+	output	wire	cam0_fail
 );
 
 reg   reset_prev;
@@ -55,7 +76,10 @@ parameter 	J_CMD_VERSION=0, /* return fw version */
 				J_CMD_TS_INSEL_WRITE=14, /* ts input select */
 				J_CMD_TS_INSEL_READ=15,
 				J_CMD_ISOC_LEN_WRITE_HI=16, /* USB isoc transfers length */
-				J_CMD_ISOC_LEN_WRITE_LO=17
+				J_CMD_ISOC_LEN_WRITE_LO=17,
+				J_CMD_CI_STATUS=20, /* CI - common interface */
+				J_CMD_CI_READ_MEM=21, 
+				J_CMD_CI_WRITE_MEM=22
 				;
 
 // main states
@@ -73,7 +97,10 @@ parameter	J_ST_DEFAULT=0,
 				J_ST_I2C_READ2=6,
 				J_ST_I2C_READ3=7,
 				J_ST_I2C_READ4=8,
-				J_ST_1=10;
+				J_ST_1=10,
+				J_ST_2=11,
+				J_ST_3=12,
+				J_ST_4=13;
 
 // i2c part
 reg i2c_we;
@@ -98,6 +125,45 @@ opencores_i2c i2c_inst (
    .sda_pad_io  (io_sda)
 );
 
+// CI part (Common Interface)
+reg 	cam_read;
+wire	cam_waitreq;
+reg	[7:0]	cam_readdata;
+reg	[17:0] cam_address;
+
+ci_bridge ci_bridge_inst (
+	.clk(clk),
+	.rst(reset),
+	
+	/* only first CI (cia) used */
+	.cia_ireq_n(ci_ireq_n),
+	.cia_cd_n( {ci_cd1, ci_cd2} ),
+	.cia_overcurrent_n (ci_overcurrent_n),
+	.cia_reset_buf_oe_n(ci_reset_oe_n),
+	.cia_reset(ci_reset),
+	.cia_data_buf_oe_n(ci_data_buf_oe_n),
+	.ci_a(ci_a),
+	.ci_d_in(ci_d),
+	//.ci_d_out(ci_d),
+	.ci_bus_dir(ci_bus_dir),
+	.cia_wait_n(ci_wait_n),
+	.ci_iowr_n(ci_iowr_n),
+	.ci_oe_n(ci_oe_n),
+	.ci_we_n(ci_we_n),
+	.cam0_ready(cam0_ready),
+	.cam0_fail(cam0_fail),
+	// .cam0_bypass(probe[11]),
+	.ci_d_en(probe[8] /* ci_d_en */),
+	.cam_readdata(cam_readdata),
+	.cam_read(cam_read),
+	.cam_waitreq(cam_waitreq),
+	.cam_address(cam_address),
+	.ci_reg_n(ci_reg_n),
+	.cia_ce_n(ci_ce_n)	
+);
+
+reg source_1;
+
 /* counter and times (calculated for 50MHZ clock) */
 reg [31:0] cnt;
 parameter	TIME_1US=50, TIME_1MS=20000, TIME_100MS=2000000;
@@ -105,14 +171,12 @@ parameter	TIME_1US=50, TIME_1MS=20000, TIME_100MS=2000000;
 reg [31:0] source;
 reg [31:0] probe;
 
-/*
 `ifndef MODEL_TECH
 probe	probe_inst(
 	.probe( probe ),
 	.source(source)
 );
 `endif
-*/
 
 always @(posedge clk) 
 begin
@@ -128,21 +192,23 @@ begin
 	if (usb_in_commit_ack_prev && ~usb_in_commit_ack)
 	begin	
 		usb_in_commit <= 0;
-		// usb_in_wren <= 0;
 	end
 	usb_in_commit_ack_prev <= usb_in_commit_ack;
 		
 	cnt <= cnt + 1;
 	
-	probe[10:0] <= isoc_commit_len;
-   
+	probe[7:0] <= reset_ctrl;
+	probe[9] <= cam0_ready;
+	probe[10] <= cam0_fail;
+	probe[23:16] <= c_state;
+	   
    case(c_state)
    ST_RESET:
    begin
 		cnt <= 0;
 		buf_out_addr <= 0;
 		buf_out_arm <= 0;
-		probe <= 0;
+		// probe <= 0;
 		c_state <= ST_IDLE;
 		j_cmd <= 0;
 		i2c_we <= 0;
@@ -154,16 +220,30 @@ begin
 		usb_in_addr <= 0;
 		usb_in_data <= 0;
 		usb_in_commit_len <= 0;
-		reset_ctrl <= 8'hB3;
+		/* '1' - mean in reset state
+		 * '0' - mean in unreset state
+		 * bit:
+		 *  7 - Sony tuner i2c gate
+		 *  6 - CI power
+		 *  5 - 5V power for TERR antenna
+		 *  4 - USB phy (always on ! )
+		 *  3 - Altobeam demod
+		 *  2 - LG demod
+		 *  1 - Sony tuner
+		 *  0 - Sony demod
+		 * Note: 5V tps for TERR antenna disabled by default. Can cause shorts with passive antenna */
+		reset_ctrl <= 8'hBF; /* unreset CI power by default */ 
 		insel <= 0;
 		isoc_commit_len <= 11'd512;
+		cam_read <= 0;
    end
    
    ST_IDLE:
    begin
-		if (buf_out_hasdata) begin
-				cnt <= 0;
-				c_state <= ST_READ_CMD;
+		if (buf_out_hasdata) 
+		begin
+			cnt <= 0;
+			c_state <= ST_READ_CMD;
 		end
    end
 	
@@ -387,6 +467,101 @@ begin
 			endcase
 		end
 		
+		/********** J_CMD_CI_STATUS **********/
+		J_CMD_CI_STATUS:
+		begin
+			case(j_state)
+			J_ST_1:
+			begin
+				if (cnt > 2)
+				begin
+					usb_in_addr <= 1;
+					usb_in_data <= {cam0_fail, cam0_ready};
+					cnt <= 0;
+					j_state <= J_ST_2;
+				end
+			end
+			J_ST_2:
+			begin
+				if (cnt > 2)
+				begin
+					usb_in_commit <= 1;
+					usb_in_wren <= 0;
+					c_state <= ST_CMD_DONE; /* wait next cmd */
+					cnt <= 0;
+				end
+			end
+			J_ST_DEFAULT: 
+			begin
+				if(usb_in_ready) /*prevent owerwriting; may cause lock */
+				begin
+					/* jcmd code in reply */
+					usb_in_addr <= 0;
+					usb_in_data = J_CMD_CI_STATUS;
+					usb_in_wren <= 1;
+					cnt <= 0;
+					usb_in_commit_len <= 2;
+					j_state <= J_ST_1;
+				end
+			end
+			default:	j_state <= J_ST_DEFAULT;
+			endcase
+		end				
+		
+		/********** J_CMD_CI_READ_MEM **********/
+		J_CMD_CI_READ_MEM:
+		begin
+			case(j_state)
+			J_ST_1:
+			begin
+				if (cnt > 2)
+				begin
+					cam_address <= buf_out_q[7:0]; /* data from addr=1 */	
+					cam_read <= 1;
+					cnt <= 0;
+					j_state <= J_ST_2;
+				end
+			end
+			J_ST_2:
+			begin
+				if (~cam_waitreq)
+				begin
+					cam_read <= 0;
+					usb_in_addr <= 1;
+					usb_in_data <= cam_readdata;
+					cnt <= 0;
+					j_state <= J_ST_3;
+				end
+			end
+			J_ST_3:
+			begin
+				if (cnt > 2)
+				begin
+					usb_in_commit <= 1;
+					usb_in_wren <= 0;
+					c_state <= ST_CMD_DONE; /* wait next cmd */
+					cnt <= 0;
+				end
+			end
+			J_ST_DEFAULT: 
+			begin
+				if(usb_in_ready) /*prevent owerwriting; may cause lock */
+				begin
+					buf_out_addr <= 1; /* addr */
+					/* jcmd code in reply */
+					usb_in_addr <= 0;
+					usb_in_data = J_CMD_CI_READ_MEM;
+					usb_in_wren <= 1;
+					cnt <= 0;
+					usb_in_commit_len <= 2;
+					j_state <= J_ST_1;
+				end
+			end
+			default:	j_state <= J_ST_DEFAULT;
+			endcase
+		end		
+		
+		/* END JCMD */
 		default: c_state <= ST_CMD_DONE;
 		endcase // case(j_cmd)
 	end

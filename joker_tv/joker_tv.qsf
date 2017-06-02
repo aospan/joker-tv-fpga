@@ -56,7 +56,6 @@ set_global_assignment -name EDA_OUTPUT_DATA_FORMAT "VERILOG HDL" -section_id eda
 set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 set_location_assignment PIN_E1 -to clk_27
-set_location_assignment PIN_J14 -to atbm
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -entity top -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -entity top -section_id Top
 set_global_assignment -name PARTITION_COLOR 16764057 -entity top -section_id Top
@@ -73,13 +72,6 @@ set_location_assignment PIN_A6 -to usb_ulpi_d[5]
 set_location_assignment PIN_B7 -to usb_ulpi_d[6]
 set_location_assignment PIN_A7 -to usb_ulpi_d[7]
 set_location_assignment PIN_A2 -to usb_phy_reset_n
-set_location_assignment PIN_F2 -to tps
-set_location_assignment PIN_L14 -to tps_ci
-set_location_assignment PIN_F1 -to tps_o
-set_location_assignment PIN_J13 -to sony_demod
-set_location_assignment PIN_F13 -to sony_tuner
-set_location_assignment PIN_F14 -to lg
-set_location_assignment PIN_A15 -to sony_tuner_i2c_en
 set_location_assignment PIN_C14 -to io_scl
 set_location_assignment PIN_D14 -to io_sda
 set_location_assignment PIN_P2 -to lg_data
@@ -184,4 +176,19 @@ set_global_assignment -name VERILOG_FILE ../opencores_i2c/i2c_master_bit_ctrl.v
 set_global_assignment -name VERILOG_FILE ../opencores_i2c/i2c_master_byte_ctrl.v
 set_global_assignment -name VERILOG_FILE ../opencores_i2c/opencores_i2c.v
 set_global_assignment -name VERILOG_FILE ../opencores_i2c/i2c_master_top.v
+set_instance_assignment -name IO_STANDARD "2.5 V" -to LED[0]
+set_location_assignment PIN_B1 -to LED[0]
+set_location_assignment PIN_C2 -to LED[1]
+set_location_assignment PIN_A14 -to LED[3]
+set_location_assignment PIN_B13 -to LED[4]
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to ci_overcurrent_n
+set_location_assignment PIN_F14 -to FE_ATSC_nRST
+set_location_assignment PIN_J14 -to FE_DTMB_nRST
+set_location_assignment PIN_J13 -to FE_DVB_nRST
+set_location_assignment PIN_F13 -to FE_TU_nRST
+set_location_assignment PIN_A15 -to TU_IIC0_EN
+set_location_assignment PIN_L14 -to SW_nEN[0]
+set_location_assignment PIN_F2 -to SW_nEN[1]
+set_location_assignment PIN_F1 -to tps_overcurrent_n
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to tps_overcurrent_n
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
