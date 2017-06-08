@@ -137,7 +137,8 @@ void add_device_qual(u16 usb_spec, u8 class_code, u8 subclass, u8 protocol_code,
 	*a++ = 0x06;
 	// *((u16 *)a)++ = (usb_spec == 0x300) ? 0x210 : 0x200;
 	// aospan
-	*a++ = (usb_spec == 0x300) ? 0x10 : 0x00;
+	// *a++ = (usb_spec == 0x300) ? 0x10 : 0x00;
+	*a++ = 0x00; /* FIXME */
 	*a++ = 0x02;
 
 	*a++ = class_code;
@@ -412,6 +413,12 @@ void add_set()
 	write_buf("\x01", 1);
 }
 
+void add_status()
+{
+	print_offsets("STATUS", 1, 1);
+	write_buf("\x00\x00", 2);
+}
+
 int main(int argc, char *argv[])
 {
 	u32 temp1, temp2;
@@ -522,6 +529,8 @@ int main(int argc, char *argv[])
 	add_string(3, "JOKERTV000");
 
 	add_set();
+
+	add_status();
 
 	print_offsets("EOF     ", 1, 1);
 

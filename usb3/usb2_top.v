@@ -11,6 +11,7 @@
 module usb2_top (
 
 input	wire			ext_clk,
+input	wire			clk_suspend, /* always "on" clk */
 input	wire			reset_n,
 output	wire			reset_n_out,
 
@@ -112,6 +113,8 @@ end
 usb2_ulpi 	ia (
 	// reset signal frome external clock domain, must be synchronized
 	.reset_n		( reset_n ),
+	
+	.clk_suspend ( ext_clk ),
 	
 	// locally generated reset, triggers local USB reset when cable is 
 	// unplugged, OR'd with external reset above

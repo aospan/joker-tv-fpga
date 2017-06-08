@@ -124,7 +124,8 @@ output	reg				err_setup_pkt
 					ST_REQ_SETCONFIG	= 6'd35,
 					ST_REQ_SETINTERFACE	= 6'd36,
 					ST_REQ_SETADDR		= 6'd37,
-					ST_REQ_VENDOR		= 6'd38;
+					ST_REQ_VENDOR		= 6'd38,
+					ST_REQ_GETSTATUS	= 6'd39;
 					
 	reg		[5:0]	state_out;
 
@@ -245,6 +246,9 @@ always @(posedge phy_clk) begin
 			// proceed with parsing
 			
 			case(packet_setup_req)
+			REQ_GET_STATUS: begin
+				state_in <= ST_REQ_GETSTATUS;
+			end
 			REQ_GET_DESCR: begin
 				state_in <= ST_REQ_DESCR;
 			end
@@ -339,6 +343,19 @@ always @(posedge phy_clk) begin
 			probe[23:16] <= packet_out_len < desired_out_len ? packet_out_len : desired_out_len;
 			flag <= 0;
 		end */
+	end
+	/* TODO: 
+		from USB 2.0 spec:
+		D0 - "Self Powered field"
+		D1 - "Remote Wakeup field"
+	*/
+	ST_REQ_GETSTATUS: begin
+		// GET DEVICE STATUS
+		len_out <= 2;
+		ready_in <= 1;
+		hasdata_out <= 1;
+		descrip_addr_offset <= DESCR_USB2_STATUS;
+		state_in <= ST_IDLE;
 	end
 	ST_REQ_GETCONFIG: begin
 		// GET DEVICE CONFIGURATION

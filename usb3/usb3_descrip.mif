@@ -109,12 +109,16 @@ CONTENT BEGIN
 --
 -- Descriptor: CONFSET
 -- 
-51	 : 01000000 ;
+51	 : 01005354 ;
+
+--
+-- Descriptor: STATUS
+-- 
+52	 : 00000000 ;
 
 --
 -- Descriptor: EOF     
 -- 
-52	 : 00000000 ;
 53	 : 00000000 ;
 54	 : 00000000 ;
 55	 : 00000000 ;

@@ -42,7 +42,7 @@ CONTENT BEGIN
 -- 
 18	 : 0A ;
 19	 : 06 ;
-20	 : 10 ;
+20	 : 00 ;
 21	 : 02 ;
 22	 : EF ;
 23	 : 02 ;
@@ -216,10 +216,14 @@ CONTENT BEGIN
 159	 : 01 ;
 
 --
--- Descriptor: EOF     
+-- Descriptor: STATUS
 -- 
 160	 : 00 ;
 161	 : 00 ;
+
+--
+-- Descriptor: EOF     
+-- 
 162	 : 00 ;
 163	 : 00 ;
 164	 : 00 ;
