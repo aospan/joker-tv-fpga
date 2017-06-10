@@ -12,7 +12,7 @@ module usb2_ulpi (
 
 // top-level interface
 input wire        clk_suspend, /* always "on" clk */
-output	reg		suspend,
+output	wire		suspend,
 input wire        reset_n,
 output   wire        reset_local,
 input wire        opt_disable_all,
@@ -193,6 +193,8 @@ synchronizer is_suspend_ss (
 	.async_in(is_suspend),
 	.sync_out(is_suspend_s)
 );
+
+assign suspend = is_suspend_s;
 
 							
 /* aospan: this block always works even phy_clk is disabled due to suspend mode 
