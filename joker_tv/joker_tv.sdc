@@ -39,6 +39,13 @@ set_time_format -unit ns -decimal_places 3
 # Create Clock
 #**************************************************************
 
+# Main DVB clock
+create_clock -name {SYSCLK} -period "27 MHz" [get_ports {clk_27}]
+
+# ULPI 
+create_clock -name {usb_ulpi_clk} -period "60 MHz" [get_ports {usb_ulpi_clk}]
+
+
 # PIPE
 
 set usb_pclk_period 4.000

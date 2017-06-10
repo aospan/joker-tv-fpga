@@ -189,13 +189,16 @@ joker_control joker_control_inst (
 	.cam0_fail(cam0_fail)
 );
 
+/* "low power" (suspend) mode */
+wire	suspend;
+
 /* CI stuff */
 wire cam0_ready;
 wire cam0_fail;
-assign LED[0] = ~cam0_ready; // GREEN for CI
-assign LED[1] = ~cam0_fail; // RED for CI
-assign LED[3] = ~usb_configured; // GREEN for USB
-assign LED[4] = usb_configured;
+assign LED[0] = (suspend) ? 1 : ~cam0_ready; // GREEN for CI
+assign LED[1] = (suspend) ? 1 : ~cam0_fail; // RED for CI
+assign LED[3] = (suspend) ? 1 : ~usb_configured; // GREEN for USB
+assign LED[4] = (suspend) ? 1 : usb_configured;
 
 /* aospan usb EP2 OUT */
 wire buf_out_hasdata;
@@ -379,6 +382,8 @@ usb2_top iu2 (
    .ext_clk          ( /* usb_ulpi_clk */ clk_50 ),
    .reset_n          ( usb_reset_n ),
    .reset_n_out      (  ),
+	
+	.suspend				( suspend ),
    
    .opt_disable_all  ( 1'b0 ),
    .opt_enable_hs    ( 1'b1 ),

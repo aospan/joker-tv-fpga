@@ -11,7 +11,7 @@
 module usb2_top (
 
 input	wire			ext_clk,
-input	wire			clk_suspend, /* always "on" clk */
+output	wire			suspend, /* "low power" mode signal*/
 input	wire			reset_n,
 output	wire			reset_n_out,
 
@@ -115,6 +115,7 @@ usb2_ulpi 	ia (
 	.reset_n		( reset_n ),
 	
 	.clk_suspend ( ext_clk ),
+	.suspend			( suspend ),
 	
 	// locally generated reset, triggers local USB reset when cable is 
 	// unplugged, OR'd with external reset above

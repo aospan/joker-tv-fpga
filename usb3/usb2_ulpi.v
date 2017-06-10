@@ -12,6 +12,7 @@ module usb2_ulpi (
 
 // top-level interface
 input wire        clk_suspend, /* always "on" clk */
+output	reg		suspend,
 input wire        reset_n,
 output   wire        reset_local,
 input wire        opt_disable_all,
@@ -67,7 +68,8 @@ output   wire  [1:0] dbg_linestate
    assign   phy_d_out_mux  = phy_d_sel ? pkt_in_byte : phy_d_out;
    assign   phy_d_oe = !phy_dir_1;
    reg            phy_stp_out;
-   assign         phy_stp        = (suspend_state == ST_SUSPEND_WAKEUP2) ? 1 : phy_stp_out ^ pkt_in_stp;
+	reg				force_stp;
+   assign         phy_stp        = (force_stp) ? 1 : phy_stp_out ^ pkt_in_stp;
    reg      [7:0] in_rx_cmd;
    reg            know_recv_packet;          // phy will drive NXT and DIR high
                                        // simultaneously to signify a receive
@@ -154,14 +156,24 @@ output   wire  [1:0] dbg_linestate
    assign         dbg_linestate = line_state;
    
    // aospan: suspend/resume part
-	reg	suspend;
+	reg	suspend_reset_1, suspend_reset_2;
    reg	resume;
+	wire	resume_s;
+	reg is_suspend;
+	wire is_suspend_s;
+	reg	phy_dir_prev;
    reg	[1:0] linestate_prev;
-   reg	[7:0] phy_clk_cnt;
-   reg	[7:0] phy_clk_cnt_last;
-   reg	[6:0]   suspend_state;
-	reg	[31:0] source;
-	reg	[31:0] probe;
+	reg	[3:0]   susp_state;
+	
+   parameter [3:0]   ST_SUSPEND_RST				= 4'd0,
+							ST_SUSPEND_IDLE			= 4'd1,
+                     ST_SUSPEND_WAKEUP			= 4'd2,
+							ST_SUSPEND_WAIT_PHY		= 4'd3,
+							ST_SUSPEND_WAIT_RESUME	= 4'd4;		
+	
+   
+reg	[31:0] source;
+reg	[31:0] probe;
 
 `ifndef MODEL_TECH
 probe   probe_inst(
@@ -170,75 +182,90 @@ probe   probe_inst(
 );
 `endif
 
-	
-   parameter [6:0]   ST_SUSPEND_IDLE = 7'd0,
-                     ST_SUSPEND_WAKEUP                       = 7'd1,
-                     ST_SUSPEND_WAKEUP2              = 7'd2;
+synchronizer resume_ss (
+	.clk (phy_clk),
+	.async_in(resume),
+	.sync_out(resume_s)
+);
 
-/* aospan: this block always work even phy_clk is disabled due to suspend mode 
+synchronizer is_suspend_ss (
+	.clk (clk_suspend),
+	.async_in(is_suspend),
+	.sync_out(is_suspend_s)
+);
+
+							
+/* aospan: this block always works even phy_clk is disabled due to suspend mode 
 * this block handle phy's "low power" (suspend) mode
 */
 always @(posedge clk_suspend) begin
-	phy_clk_cnt_last <= phy_clk_cnt;
 	linestate_prev <= phy_d_in[1:0];
-   probe[7:0] <= state;
-	probe[15:8] <= suspend_state;
-	probe[16] <= ~probe[16];
+	phy_dir_prev <= phy_dir;
+	{suspend_reset_2, suspend_reset_1} <= {suspend_reset_1, reset_n};
 	
-	case(suspend_state)
+	if(~suspend_reset_2) susp_state <= ST_SUSPEND_RST;
+			
+	case(susp_state)
+		ST_SUSPEND_RST:
+		begin
+			force_stp <= 0;
+			resume <= 0;
+			phy_dir_prev <= 0;
+			linestate_prev <= 0;
+			susp_state <= ST_SUSPEND_IDLE;
+		end
+		
 		ST_SUSPEND_IDLE:
 		begin
-			if (state != ST_SUSPEND_ACT)
-				resume <= 0; /* resume propagated. deassert it */
-
-			if (state == ST_SUSPEND_ACT && phy_clk_cnt_last == phy_clk_cnt)
+			if ( is_suspend_s )
 			begin
-				/* phy clock stopped. now we are officially suspended */
+				/* now we are officially suspended */
 				resume <= 0;
-
-				// detect resume 
-				// from usb 2.0 spec: If a device is in the Suspend state, its operation is 
-				// resumed when any non-idle signaling is received on its upstream facing port.
-				if (~linestate_prev[1] && phy_d_in[1])
-					suspend_state <= ST_SUSPEND_WAKEUP2;
+				susp_state <= ST_SUSPEND_WAIT_RESUME;
 			end
 		end
+		
+		ST_SUSPEND_WAIT_RESUME:
+		begin
+			// detect resume 
+			// from usb 2.0 spec: If a device is in the Suspend state, its operation is 
+			// resumed when any non-idle signaling is received on its upstream facing port.
+			
+			// monitor DM
+			if (linestate_prev[1])
+			begin
+				susp_state <= ST_SUSPEND_WAKEUP;
+				force_stp <= 1;
+			end
+		end
+		
 		ST_SUSPEND_WAKEUP:
 		begin
-			/* we need to detect resume end (about 20 msec )
-			* from usb 2.0 spec: It must send the resume signaling for at least 20 ms and
-			* then end the resume signaling in one of two ways, depending on the speed at which its port 
-			* was operating when it was suspended. If the port was in low-/full-speed when suspended, 
-			* the resume signaling must be ended with a standard, low-speed EOP (two low-speed bit times of 
-			* SE0 followed by a J). If the port was operating in highspeed when it was suspended, the resume 
-			* signaling must be ended with a transition to the high-speed idle state
-			*/
-
-			// resume is "K" state
-			if (linestate_prev[1] && ~phy_d_in[1])
-				suspend_state <= ST_SUSPEND_WAKEUP2;
-		end
-		ST_SUSPEND_WAKEUP2:
-		begin   
 			// USB3320 DS: After DIR has been de-asserted, the Link can de-assert   
 			// STP when ready and start operating in Synchronous Mode
-			if(~phy_dir) 
+			if(~phy_dir_prev) 
 			begin
 				resume <= 1;
-				suspend_state <= ST_SUSPEND_IDLE;
+				force_stp <= 0;
+				susp_state <= ST_SUSPEND_WAIT_PHY;
 			end
 		end
-		default:
+		
+		ST_SUSPEND_WAIT_PHY:
 		begin
-			resume <= 0;
-			suspend_state <= ST_SUSPEND_IDLE;
+			if (!is_suspend_s)
+			begin
+				resume <= 0; /* phy_clk appear, "resume" propagated. deassert it */
+				susp_state <= ST_SUSPEND_IDLE;
+			end
 		end
+		
+		default: susp_state <= ST_SUSPEND_RST;
 	endcase
 end
-        
-   
-always @(posedge phy_clk) begin
 
+
+always @(posedge phy_clk) begin
    // edge detection / synchronize
    {reset_2, reset_1} <= {reset_1, reset_n};
    {opt_enable_hs_2, opt_enable_hs_1} <= {opt_enable_hs_1, opt_enable_hs};
@@ -246,7 +273,7 @@ always @(posedge phy_clk) begin
    
    vbus_valid_1 <= vbus_valid;
    phy_dir_1 <= phy_dir;
-
+	
    dc <= dc + 1'b1;
 	
    // clear to send (for packet layer) generation
@@ -280,7 +307,7 @@ always @(posedge phy_clk) begin
       dc <= 0;
       dc_wrap <= 0;
       pkt_in_latch_defer <= 0;
-      
+		
       // stay stuck in reset, if disable is specified
       if(opt_disable_all) 
          state <= ST_RST_0;
@@ -408,7 +435,7 @@ always @(posedge phy_clk) begin
 	ST_SUSPEND: 
 	begin
 		/* switch phy to "low power" (suspend) mode
-		* phy_clk will be disabled in few  (5) cycles 
+		* phy_clk will be disabled in few  (5?) cycles 
 		*/
 		tx_cmd_code <=          TX_CMD_REGWR_IMM;
 		tx_reg_addr <=          6'h4;
@@ -420,21 +447,27 @@ always @(posedge phy_clk) begin
 		};
 		state <= ST_TXCMD_0;
 		state_next <= ST_SUSPEND_ACT;
+		is_suspend <= 1;
 	end
 
 	ST_SUSPEND_ACT:
 	begin
 		/* we are waked up */
-		if (resume == 1)
-		begin
+		if (resume_s)
 			state <= ST_SUSPEND_ACT2;
-		end
 	end
- 
+
 	ST_SUSPEND_ACT2:
 	begin
-		// wait resume end (resume is "K" state)
-		if (line_state == 2'b00)
+		/* we need to detect resume end (about 20 msec ?)
+			* from usb 2.0 spec: It must send the resume signaling for at least 20 ms and
+			* then end the resume signaling in one of two ways, depending on the speed at which its port 
+			* was operating when it was suspended. If the port was in low-/full-speed when suspended, 
+			* the resume signaling must be ended with a standard, low-speed EOP (two low-speed bit times of 
+			* SE0 followed by a J). If the port was operating in highspeed when it was suspended, the resume 
+			* signaling must be ended with a transition to the high-speed idle state
+		*/
+		if (line_state == 2'b00 /* TODO: this for high speed only*/)
 			state <= ST_SUSPEND_ACT3;
 		
 		// update linestate
@@ -460,6 +493,7 @@ always @(posedge phy_clk) begin
 		state_next <= ST_IDLE;
 		dc_wrap <= 0;
 		dc <= 0;
+		is_suspend <= 0;
 	end
 
 										  
