@@ -213,7 +213,6 @@ reg [7:0] dc_rd = 8'h00;
 reg [7:0] dc_rd_wrap = 8'h00;
 
 wire clk_50;
-wire clk_100;
 reg [1:0] det_ack;
 wire acked;
 assign acked = (det_ack == 2'b10);
@@ -225,13 +224,13 @@ wire	[7:0] reset_ctrl;
 	
 /* '1' - mean in reset state (disabled)
  * '0' - mean in unreset state  (enabled) */
-assign   TU_IIC0_EN = ~reset_ctrl[7]; /* Sony tuner i2c gate */
-assign   SW_nEN[0] = reset_ctrl[6]; /* CI power */
-assign   SW_nEN[1] = reset_ctrl[5]; /* 5V power for TERR antenna */
-assign   FE_DTMB_nRST = ~reset_ctrl[3]; /* Altobeam demod */
-assign   FE_ATSC_nRST = ~reset_ctrl[2]; /* LG demod */
-assign   FE_TU_nRST = ~reset_ctrl[1]; /* Sony tuner */
-assign   FE_DVB_nRST = ~reset_ctrl[0]; /* Sony demod */
+assign   TU_IIC0_EN = (suspend) ? 0 : ~reset_ctrl[7]; /* Sony tuner i2c gate */
+assign   SW_nEN[0] = (suspend) ? 1 : reset_ctrl[6]; /* CI power */
+assign   SW_nEN[1] = (suspend) ? 1 : reset_ctrl[5]; /* 5V power for TERR antenna */
+assign   FE_DTMB_nRST = (suspend) ? 0 : ~reset_ctrl[3]; /* Altobeam demod */
+assign   FE_ATSC_nRST = (suspend) ? 0 : ~reset_ctrl[2]; /* LG demod */
+assign   FE_TU_nRST = (suspend) ? 0 : ~reset_ctrl[1]; /* Sony tuner */
+assign   FE_DVB_nRST = (suspend) ? 0 : ~reset_ctrl[0]; /* Sony demod */
  
 /* always force USB unreset */
 assign usb_phy_reset_n = 1;
@@ -268,8 +267,7 @@ ts_proxy ts_proxy_inst (
 
 aospan_pll  apll (
    .inclk0           ( clk_27 ),
-   .c0               (clk_50),
-	.c1               (clk_100)
+   .c0               (clk_50)
 );
 
 

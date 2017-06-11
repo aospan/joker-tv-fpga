@@ -22,6 +22,5 @@ FUNCTION aospan_pll
 
 RETURNS (
 	c0,
-	c1,
 	locked
 );
