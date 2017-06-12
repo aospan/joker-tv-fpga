@@ -192,4 +192,8 @@ set_global_assignment -name VERILOG_FILE ../opencores_i2c/i2c_master_bit_ctrl.v
 set_global_assignment -name VERILOG_FILE ../opencores_i2c/i2c_master_byte_ctrl.v
 set_global_assignment -name VERILOG_FILE ../opencores_i2c/opencores_i2c.v
 set_global_assignment -name VERILOG_FILE ../opencores_i2c/i2c_master_top.v
+set_location_assignment PIN_L1 -to TS_ATBM8881_D0
+set_location_assignment PIN_L2 -to TS_ATBM8881_CLK
+set_location_assignment PIN_N1 -to TS_ATBM8881_START
+set_location_assignment PIN_L4 -to TS_ATBM8881_VALID
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

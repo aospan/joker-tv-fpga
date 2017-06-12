@@ -65,6 +65,12 @@ output wire	FE_ATSC_nRST, /* LG demod */
 output wire	FE_TU_nRST, /* Sony tuner */
 output wire	FE_DVB_nRST, /* Sony demod */
 
+/* DTMB TS pins */
+input		wire	TS_ATBM8881_CLK,
+input		wire	TS_ATBM8881_D0,
+input		wire	TS_ATBM8881_VALID,
+input		wire	TS_ATBM8881_START,
+
 /* LG TS pins */
 input		wire	lg_clk,
 input		wire	lg_data,
@@ -236,32 +242,36 @@ assign   FE_DVB_nRST = (suspend) ? 0 : ~reset_ctrl[0]; /* Sony demod */
 assign usb_phy_reset_n = 1;
  
 ts_proxy ts_proxy_inst (
-                .clk( usb_ulpi_clk /* clk_50 */),
-                .atsc_clock(lg_clk),
-                .atsc_start(lg_start),
-                .atsc_valid(lg_valid),
-                .atsc_data(lg_data),
-					 .dvb_clock(sony_clk),
-                .dvb_start(sony_start),
-                .dvb_valid(sony_valid),
-                .dvb_data(sony_data),
-                .ep3_usb_in_data(ep3_usb_in_data),
-                .ep3_usb_in_addr(ep3_usb_in_addr),
-                .ep3_usb_in_wren(ep3_usb_in_wren),
-                .ep3_usb_in_commit(ep3_usb_in_commit),
-                .ep3_usb_in_commit_len(ep3_usb_in_commit_len),
-                .ep3_usb_in_ready(ep3_usb_in_ready),
-					 .ep3_usb_in_commit_ack(ep3_usb_in_commit_ack),
-					 .ep3_ext_buf_out_arm(ep3_ext_buf_out_arm),
-                .commit_len(isoc_commit_len),
-					 .insel(insel),
-					 //.pkts_cnt(probe[15:0]),
-					 //.tslost(probe[23:16]),
-					 // .acked(probe[15:8]),
-					 // .missed(probe[23:16]),
-					 // .state(probe[27:24]),
-					 //.fifo_clean(probe[31:28]),
-                .reset(reset)
+	.clk( usb_ulpi_clk /* clk_50 */),
+	.atsc_clock(lg_clk),
+	.atsc_start(lg_start),
+	.atsc_valid(lg_valid),
+	.atsc_data(lg_data),
+	.dtmb_clock(TS_ATBM8881_CLK),
+	.dtmb_start(TS_ATBM8881_START),
+	.dtmb_valid(TS_ATBM8881_VALID),
+	.dtmb_data(TS_ATBM8881_D0),
+	.dvb_clock(sony_clk),
+	.dvb_start(sony_start),
+	.dvb_valid(sony_valid),
+	.dvb_data(sony_data),
+	.ep3_usb_in_data(ep3_usb_in_data),
+	.ep3_usb_in_addr(ep3_usb_in_addr),
+	.ep3_usb_in_wren(ep3_usb_in_wren),
+	.ep3_usb_in_commit(ep3_usb_in_commit),
+	.ep3_usb_in_commit_len(ep3_usb_in_commit_len),
+	.ep3_usb_in_ready(ep3_usb_in_ready),
+	.ep3_usb_in_commit_ack(ep3_usb_in_commit_ack),
+	.ep3_ext_buf_out_arm(ep3_ext_buf_out_arm),
+	.commit_len(isoc_commit_len),
+	.insel(insel),
+	//.pkts_cnt(probe[15:0]),
+	//.tslost(probe[23:16]),
+	// .acked(probe[15:8]),
+	// .missed(probe[23:16]),
+	// .state(probe[27:24]),
+	//.fifo_clean(probe[31:28]),
+	.reset(reset)
 );
 
 

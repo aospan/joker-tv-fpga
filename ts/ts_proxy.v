@@ -5,6 +5,12 @@ module ts_proxy (
 	/* input selector. 00 - DVB, 01 - DTMB, 10 - ATSC */
 	input	wire	[1:0]		insel,
 
+	/* wires from DTMB demod */
+	input	wire		dtmb_clock,
+	input	wire		dtmb_start,
+	input	wire		dtmb_valid,
+	input	wire		dtmb_data,
+	
 	/* wires from ATSC demod */
 	input	wire		atsc_clock,
 	input	wire		atsc_start,
@@ -71,6 +77,10 @@ dvb_ts_selector tssel (
 	.atsc_start (atsc_start),
 	.atsc_valid (atsc_valid),
 	.atsc_data (atsc_data),
+	.dtmb_clock (dtmb_clock),
+	.dtmb_start (dtmb_start),
+	.dtmb_valid (dtmb_valid),
+	.dtmb_data (dtmb_data),	
 	.dvb_clock (dvb_clock),
 	.dvb_start (dvb_start),
 	.dvb_valid (dvb_valid),
