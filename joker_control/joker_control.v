@@ -171,12 +171,14 @@ parameter	TIME_1US=50, TIME_1MS=20000, TIME_100MS=2000000;
 reg [31:0] source;
 reg [31:0] probe;
 
+/*
 `ifndef MODEL_TECH
 probe	probe_inst(
 	.probe( probe ),
 	.source(source)
 );
 `endif
+*/
 
 always @(posedge clk) 
 begin
