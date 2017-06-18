@@ -47,7 +47,8 @@ module ts_proxy_tb ();
 		.ep3_usb_in_ready(ep3_usb_in_ready),
 		.ep3_usb_in_commit_ack(ep3_usb_in_commit_ack),
 		.commit_len(11'd1020),
-		.insel(2'b10),
+		// .insel(2'b10),
+		.insel(2'b11), // TSGEN
 		.reset(reset)
 	);
 
@@ -105,6 +106,19 @@ module ts_proxy_tb ();
 
 	always
 		#8.33 phy_clk = ~phy_clk; // 60MHz ULPI
+
+	always @(posedge clk ) begin
+		if (ts_proxy_tb.DUT.almost_full)
+		begin
+			// simulate buffer cleanup
+			// force ts_proxy_tb.USBTOP.ipr.sel_endp = 2'b10;
+			force ts_proxy_tb.USBTOP.ipr.ep3_buf_out_arm = 1;
+		end
+		else begin
+			force ts_proxy_tb.USBTOP.ipr.ep3_buf_out_arm = 0;
+		end
+	end
+
 
 	/* serialize data from TS and write it to USB EP */
 	initial
