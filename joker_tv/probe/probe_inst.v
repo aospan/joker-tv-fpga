@@ -1,5 +1,5 @@
 	probe u0 (
-		.source (<connected-to-source>), // sources.source
-		.probe  (<connected-to-probe>)   //  probes.probe
+		.probe  (<connected-to-probe>),  //  probes.probe
+		.source (<connected-to-source>)  // sources.source
 	);
 

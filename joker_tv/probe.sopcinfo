@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <EnsembleReport name="probe" kind="probe" version="1.0" fabric="QSYS">
  <!-- Format version 16.1 196 (Future versions may contain additional information.) -->
- <!-- 2017.05.23.14:01:37 -->
+ <!-- 2017.06.13.02:55:10 -->
  <!-- A collection of modules and connections -->
  <parameter name="AUTO_GENERATION_ID">
   <type>java.lang.Integer</type>
-  <value>1495562497</value>
+  <value>1497336910</value>
   <derived>false</derived>
   <enabled>true</enabled>
   <visible>false</visible>
@@ -127,7 +127,7 @@ the requested settings for a module instance. -->
   </parameter>
   <parameter name="probe_width">
    <type>int</type>
-   <value>32</value>
+   <value>511</value>
    <derived>false</derived>
    <enabled>true</enabled>
    <visible>true</visible>
@@ -275,7 +275,7 @@ parameters are a RESULT of the module parameters. -->
    <port>
     <name>probe</name>
     <direction>Input</direction>
-    <width>32</width>
+    <width>511</width>
     <role>probe</role>
    </port>
   </interface>

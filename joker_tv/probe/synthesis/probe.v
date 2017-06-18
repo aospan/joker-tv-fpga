@@ -4,15 +4,15 @@
 
 `timescale 1 ps / 1 ps
 module probe (
-		input  wire [31:0] probe,  //  probes.probe
-		output wire [31:0] source  // sources.source
+		input  wire [510:0] probe,  //  probes.probe
+		output wire [31:0]  source  // sources.source
 	);
 
 	altsource_probe_top #(
 		.sld_auto_instance_index ("YES"),
 		.sld_instance_index      (0),
 		.instance_id             ("PROB"),
-		.probe_width             (32),
+		.probe_width             (511),
 		.source_width            (32),
 		.source_initial_value    ("0"),
 		.enable_metastability    ("NO")
