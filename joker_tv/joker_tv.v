@@ -284,13 +284,14 @@ aospan_pll  apll (
 reg [31:0] source;
 wire [31:0] probe;
 
+/*
 `ifndef MODEL_TECH
 probe	probe_inst(
 	.probe( probe ),
 	.source(source)
 );
 `endif
-
+*/
 
 reg      reset;
 
