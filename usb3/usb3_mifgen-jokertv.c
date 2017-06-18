@@ -238,8 +238,8 @@ void add_config_start(u16 usb_spec, u8 attrib, u32 power_ma, u8 num_endpoints)
 	*a++ = 0x00;				// bAlternateSetting
 	*a++ = num_endpoints;		// bNumEndpoints
 	*a++ = 0xFF;				// bInterfaceClass
-	*a++ = 0xFF;				// bInterfaceSubClass
-	*a++ = 0xFF;				// bInterfaceProtocol
+	*a++ = 0 /* 0xFF */;				// bInterfaceSubClass
+	*a++ = 0 /* 0xFF */;				// bInterfaceProtocol
 	*a++ = 0x02;				// iInterface
 	bytes_pending_2 += 0x9;
 	bytes_pending_3 += 0x9;
@@ -405,6 +405,77 @@ void add_string(u8 idx, char* str)
 	iconv_close(conv);
 }
 
+void add_langs()
+{
+	char temp[32];
+	char buf[] = { 0x06, 0x03, /* len + const */
+		0x09, 0x04, /* english */ 
+		0x00, 0x00 /* OS string descriptors */ };
+
+	memset(buf_2, 0, sizeof(buf_2));
+	a = buf_2;
+
+	sprintf(temp, "STRING0");
+	print_offsets(temp, 1, 1);
+
+	memcpy(a, buf, sizeof(buf));
+	write_buf(buf_2, sizeof(buf));
+	printf("adding langs. len=%d\n", sizeof(buf));
+}
+
+void add_winusb_compat()
+{
+	char temp[32];
+
+#if 1
+	/* USB\MS_COMP_WINUSB */
+	char buf[] = { 0x28, 0x00, 0x00, 0x00, /* length 40 bytes*/
+		0x00, 0x01, /* version */
+		0x04, 0x00, /* Extended compat ID descriptor */
+		0x01, /* Number of function sections */
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* reserved */
+		0x00, /*Interface number */
+		0x01,  /* Reserved */
+		0x57, 0x49, 0x4E, 0x55, 0x53, 0x42, 0x00, 0x00, /* WINUSB */
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* Secondary ID. */
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+#endif
+
+#if 0
+	char buf[] = { 0x58, 0x00, 0x00, 0x00, /* length 40 bytes*/
+		0x00, 0x01, /* version */
+		0x04, 0x00, /* Extended compat ID descriptor */
+		0x03, /* Number of function sections */
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* reserved */
+		0x00, /*Interface number */
+		0x01,  /* Reserved */
+		0x57, 0x49, 0x4E, 0x55, 0x53, 0x42, 0x00, 0x00, /* WINUSB */
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* Secondary ID. */
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x01, /*Interface number */
+		0x01,  /* Reserved */
+		0x57, 0x49, 0x4E, 0x55, 0x53, 0x42, 0x00, 0x00, /* WINUSB */
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* Secondary ID. */
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x02, /*Interface number */
+		0x01,  /* Reserved */
+		0x57, 0x49, 0x4E, 0x55, 0x53, 0x42, 0x00, 0x00, /* WINUSB */
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* Secondary ID. */
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00 
+	};
+#endif
+
+	memset(buf_2, 0, sizeof(buf_2));
+	a = buf_2;
+
+	sprintf(temp, "MS_COMPAT");
+	print_offsets(temp, 1, 1);
+
+	memcpy(a, buf, sizeof(buf));
+	write_buf(buf_2, sizeof(buf));
+	printf("adding winusb composite. len=%d\n", sizeof(buf));
+}
+
 void add_set()
 {
 	print_offsets("CONFUNSET", 1, 1);
@@ -446,13 +517,13 @@ int main(int argc, char *argv[])
 						// 0xFF,		// Class Code
 						// 0xFF,		// Subclass
 						// 0xFF,		// Protocol Code
-						239 /* 0xFF */,		// Class Code
-						2 /* 0xFF */,		// Subclass
-						1 /* 0xFF */,		// Protocol Code
+						0x0 /* 239 */ /* 0xFF */,		// Class Code
+						0x0 /* 2 */ /* 0xFF */,		// Subclass
+						0x0 /* 1 */ /* 0xFF */,		// Protocol Code
 						64,			// Endpoint0 Max packet (ignored for 3.0)
 						0x2D6B,		// Vendor ID
 						0x7777,		// Product ID
-						0x1,		// Device release number
+						0x15,		// Device release number
 						1,			// Index of Manufacturer Str Descriptor
 						2,			// Index of Product Str Descriptor
 						3,			// Index of Serial Number Str Descriptor
@@ -523,10 +594,13 @@ int main(int argc, char *argv[])
 	print_offsets("BOS_LEN", 0, 1);
 	i_3 = temp2;
 
-	add_string(0, "\x09\x04\0");
+	add_langs();
+	// add_string(0, "\x09\x04\x00\x00\0");
 	add_string(1, "Joker Systems Inc.");
 	add_string(2, "Joker TV");
 	add_string(3, "JOKERTV000");
+	add_string(0xEE, "MSFT100\x77\x00");
+	add_winusb_compat();
 
 	add_set();
 

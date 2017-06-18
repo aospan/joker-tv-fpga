@@ -101,7 +101,8 @@ output	reg				err_setup_pkt
 					REQ_GET_CONFIG		= 8'h8,
 					REQ_SET_CONFIG		= 8'h9,
 					REQ_SET_INTERFACE	= 8'hB,
-					REQ_SYNCH_FRAME		= 8'h12;
+					REQ_SYNCH_FRAME		= 8'h12,
+					REQ_GET_MS_COMPAT		= 8'h77;
 	wire	[15:0]	packet_setup_wval	= {packet_setup[55:48], packet_setup[63:56]};
 	wire	[15:0]	packet_setup_widx	= {packet_setup[39:32], packet_setup[47:40]};
 	wire	[15:0]	packet_setup_wlen	= {packet_setup[23:16], packet_setup[31:24]};
@@ -125,7 +126,8 @@ output	reg				err_setup_pkt
 					ST_REQ_SETINTERFACE	= 6'd36,
 					ST_REQ_SETADDR		= 6'd37,
 					ST_REQ_VENDOR		= 6'd38,
-					ST_REQ_GETSTATUS	= 6'd39;
+					ST_REQ_GETSTATUS	= 6'd39,
+					ST_REQ_GET_MS_COMPAT	= 6'd40;
 					
 	reg		[5:0]	state_out;
 
@@ -151,9 +153,8 @@ output	reg				err_setup_pkt
 	
 	reg		[6:0]	dc;
 	
-/*	reg [31:0] source;
-	reg [31:0] probe;
-	reg flag;
+reg [31:0] source;
+reg [511:0] probe;
 	
 `ifndef MODEL_TECH
 probe	probe_inst(
@@ -161,10 +162,10 @@ probe	probe_inst(
 	.source(source)
 );
 `endif
-	*/
 	
 always @(posedge phy_clk) begin
-
+	// probe[30] <= ~probe[30];
+	
 	// synchronizers
 	{reset_2, reset_1} <= {reset_1, reset_n};
 	{buf_in_commit_2, buf_in_commit_1} <= {buf_in_commit_1, buf_in_commit};
@@ -174,6 +175,9 @@ always @(posedge phy_clk) begin
 		
 	dc <= dc + 1'b1;
 	
+	if (source[0])
+		probe <= 512'd0;
+	
 	// clear act strobe after 4 cycles
 	if(dc == 3) vend_req_act <= 1'b0;
 	
@@ -181,6 +185,8 @@ always @(posedge phy_clk) begin
 	case(state_in) 
 	ST_RST_0: begin
 		len_out <= 0;
+		
+		probe <= 0;
 		
 		// data toggle is fixed at DATA1
 		data_toggle <= 2'b01;
@@ -209,7 +215,8 @@ always @(posedge phy_clk) begin
 			//if(buf_in_pid == PID_TOKEN_SETUP) begin
 				// wait for data latch
 				dc <= 0;
-				state_in <= ST_IN_COMMIT;
+				state_in <= ST_IN_PARSE_0; /* save data before throw it  (not vise-versa) */
+				buf_in_rdaddr <= 0;
 			//end
 		end
 	end
@@ -218,7 +225,7 @@ always @(posedge phy_clk) begin
 		if(dc == 3) begin
 			dc <= 0;
 			buf_in_rdaddr <= 0;
-			state_in <= ST_IN_PARSE_0;
+			state_in <= ST_IN_PARSE_1;
 		end
 	end
 	
@@ -227,7 +234,11 @@ always @(posedge phy_clk) begin
 		buf_in_rdaddr <= buf_in_rdaddr + 1'b1;
 		
 		packet_setup <= {packet_setup[71:0], buf_in_q[7:0]};
-		if(dc == (10+2-1)) state_in <= ST_IN_PARSE_1;		
+		if(dc == (10+2-1)) 
+		begin
+			dc <= 0;
+			state_in <= ST_IN_COMMIT;
+		end
 	end
 	ST_IN_PARSE_1: begin
 		// parse setup packet
@@ -239,9 +250,16 @@ always @(posedge phy_clk) begin
 		//	state <= 10;
 		//end else begin
 		
+		// DEBUG: save last USB requests into in-system probe for analyze
+		// if (len_in > 0 && packet_setup_req[7:0] == 8'h06 /* GET_DESCRIPTOR */ /* && packet_setup_wval[9:8] == 2'b11 */ /* string */)
+			//probe[511:0] <= {probe[463:0], 8'hFF, packet_setup_req[7:0], packet_setup_wval };
+		// if (len_in > 0 )	
+			//probe[511:0] <= {probe[463:0], 8'hFF, len_in[7:0],  /* packet_setup_reqtype[7:0] ,*/ packet_setup_req[7:0], packet_setup_wval };
+		
 		if(packet_setup_type == SETUP_TYPE_VENDOR) begin
 			// parse vendor request
 			state_in <= ST_REQ_VENDOR;
+			// probe[28] <= 1;
 		end else begin
 			// proceed with parsing
 			
@@ -273,7 +291,7 @@ always @(posedge phy_clk) begin
 	end
 	
 	ST_REQ_DESCR: begin
-		
+		// probe[15:0] <= packet_setup_wval;
 		state_in <= ST_RDLEN_0;
 		
 		// GET_DESCRIPTOR
@@ -309,6 +327,11 @@ always @(posedge phy_clk) begin
 			// string: serial number
 			descrip_addr_offset <= DESCR_USB2_STRING3;
 		end
+		16'h03EE: begin
+			// string: MS COMPAT 0xEE string
+			descrip_addr_offset <= DESCR_USB2_STRING238;
+			// probe[29] <= 1;
+		end		
 		16'h0600: begin
 			// device qualifier descriptor
 			descrip_addr_offset <= DESCR_USB2_DEVICE_QUAL;
@@ -398,22 +421,54 @@ always @(posedge phy_clk) begin
 		state_in <= ST_IDLE;
 	end
 	
+	ST_REQ_GET_MS_COMPAT: begin
+		probe[23] <= 1;
+		// GET MS COMPAT 'OS Feature Descriptor'
+		if (packet_setup_widx == 8'h04)
+		begin
+			probe[25] <= 1;
+			// probe[15:0] <= packet_setup_wlen;
+			len_out <= packet_setup_wlen;
+			ready_in <= 1;
+			hasdata_out <= 1;
+			descrip_addr_offset <= DESCR_USB2_MS_COMPAT;
+			state_in <= ST_IDLE;
+		end
+		else begin
+			probe[24] <= 1;
+			len_out <= 0;
+			ready_in <= 1;
+			hasdata_out <= 1;
+			state_in <= ST_IDLE;
+		end
+	end
 	ST_REQ_VENDOR: begin
-		// VENDOR REQUEST
-		vend_req_request <= packet_setup_req;
-		vend_req_val <= packet_setup_wval;
-		//vend_req_index <= packet_setup_widx;
-		// optional data stage for bidir control transfers
-		// would require additional unsupported code in this endpoint
-		//vend_req_len <= packet_setup_wlen;
-		// signal to external interface there was a vend_req
-		vend_req_act <= 1'b1;
-		dc <= 0;
-		// send 0byte response (DATA1)
-		len_out <= 0;
-		ready_in <= 1;
-		hasdata_out <= 1;
-		state_in <= ST_IDLE;
+		probe[26] <= 1;
+		case(packet_setup_req)
+		REQ_GET_MS_COMPAT: begin
+			probe[27] <= 1;
+			state_in <= ST_REQ_GET_MS_COMPAT;
+		end
+		default:
+		begin
+			probe[28] <= 1;
+			// VENDOR REQUEST
+			vend_req_request <= packet_setup_req;
+			vend_req_val <= packet_setup_wval;
+			//vend_req_index <= packet_setup_widx;
+			// optional data stage for bidir control transfers
+			// would require additional unsupported code in this endpoint
+			//vend_req_len <= packet_setup_wlen;
+			// signal to external interface there was a vend_req
+			vend_req_act <= 1'b1;
+			dc <= 0;
+			// send 0byte response (DATA1)
+			len_out <= 0;
+			ready_in <= 1;
+			hasdata_out <= 1;
+			state_in <= ST_IDLE;
+		end
+		endcase
 	end
 	default: state_in <= ST_RST_0;
 	endcase
