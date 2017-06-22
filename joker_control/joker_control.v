@@ -14,11 +14,17 @@ module joker_control
    input    wire  clk,
    input    wire  reset,
 	
+	/* SPI flash pins */
+	output		wire	FLASH_SCLK,
+	output		wire	FLASH_MOSI,
+	input			wire	FLASH_MISO,
+	output		wire	FLASH_nCS,	
+	
 	/* EP2 OUT */
    input    wire  buf_out_hasdata, 
 	input		wire	[9:0] buf_out_len, 
 	input		wire	[7:0] buf_out_q,
-	output	reg	[10:0] buf_out_addr,
+	output	wire	[10:0] buf_out_addr_o,
 	input		wire	buf_out_arm_ack,
 	output	reg	buf_out_arm,
 	
@@ -26,9 +32,9 @@ module joker_control
    input    wire  usb_in_commit_ack,
 	input		wire	usb_in_ready,
    output   reg  usb_in_commit,
-	output	reg	[ 10:0]   usb_in_addr,
-	output	reg	[ 7:0]   usb_in_data,
-	output	reg	usb_in_wren,
+	output	wire	[ 10:0]   usb_in_addr_o,
+	output	wire	[ 7:0]   usb_in_data_o,
+	output	wire	usb_in_wren_o,
 	output	reg	[ 10:0]   usb_in_commit_len,
 	
 	/* I2C */
@@ -62,25 +68,14 @@ module joker_control
 	output	wire	cam0_fail
 );
 
+reg	[7:0]	j_cmd;
+`include "joker_control.vh"
+
 reg   reset_prev;
 reg	buf_out_arm_ack_prev;
 reg	usb_in_commit_ack_prev;
 
-// joker commands
-reg	[7:0]	j_cmd;
-parameter 	J_CMD_VERSION=0, /* return fw version */
-				J_CMD_I2C_WRITE=10, /* i2c read/write */				
-				J_CMD_I2C_READ=11,
-				J_CMD_RESET_CTRL_WRITE=12, /* reset control register  r/w */
-				J_CMD_RESET_CTRL_READ=13,
-				J_CMD_TS_INSEL_WRITE=14, /* ts input select */
-				J_CMD_TS_INSEL_READ=15,
-				J_CMD_ISOC_LEN_WRITE_HI=16, /* USB isoc transfers length */
-				J_CMD_ISOC_LEN_WRITE_LO=17,
-				J_CMD_CI_STATUS=20, /* CI - common interface */
-				J_CMD_CI_READ_MEM=21, 
-				J_CMD_CI_WRITE_MEM=22
-				;
+
 
 // main states
 reg [3:0] c_state = 4'b0000;
@@ -100,7 +95,8 @@ parameter	J_ST_DEFAULT=0,
 				J_ST_1=10,
 				J_ST_2=11,
 				J_ST_3=12,
-				J_ST_4=13;
+				J_ST_4=13,
+				J_ST_5=14;
 
 // i2c part
 reg i2c_we;
@@ -128,7 +124,7 @@ opencores_i2c i2c_inst (
 // CI part (Common Interface)
 reg 	cam_read;
 wire	cam_waitreq;
-reg	[7:0]	cam_readdata;
+wire	[7:0]	cam_readdata;
 reg	[17:0] cam_address;
 
 ci_bridge ci_bridge_inst (
@@ -153,7 +149,7 @@ ci_bridge ci_bridge_inst (
 	.cam0_ready(cam0_ready),
 	.cam0_fail(cam0_fail),
 	// .cam0_bypass(probe[11]),
-	.ci_d_en(probe[8] /* ci_d_en */),
+	// .ci_d_en(probe[8] /* ci_d_en */),
 	.cam_readdata(cam_readdata),
 	.cam_read(cam_read),
 	.cam_waitreq(cam_waitreq),
@@ -179,6 +175,42 @@ probe	probe_inst(
 );
 `endif
 */
+
+// SPI part
+wire	spi_ack;
+wire	[10:0]	buf_out_addr_spi;
+reg	[10:0]	buf_out_addr;
+wire	[10:0]	usb_in_addr_spi;
+reg	[10:0]	usb_in_addr;
+wire	usb_in_wren_spi;
+reg	usb_in_wren;
+wire	[10:0]	usb_in_commit_len_spi;
+wire	[10:0]	usb_in_data_spi;
+reg	[10:0]	usb_in_data;
+
+joker_spi joker_spi_inst(
+	.clk(clk),
+	.reset(reset),
+	.j_cmd(j_cmd),
+	.ack_o(spi_ack),
+	.buf_out_addr(buf_out_addr_spi),
+	.buf_out_len(buf_out_len),
+	.buf_out_q(buf_out_q),
+	.usb_in_addr(usb_in_addr_spi),
+	.usb_in_wren(usb_in_wren_spi),
+	.usb_in_commit_len(usb_in_commit_len_spi),
+	.usb_in_data(usb_in_data_spi),
+	.FLASH_SCLK(FLASH_SCLK),
+	.FLASH_MOSI(FLASH_MOSI),
+	.FLASH_MISO(FLASH_MISO),
+	.FLASH_nCS(FLASH_nCS)	
+);
+
+/* mux usb EP's between submodules */
+assign	buf_out_addr_o = (j_cmd == J_CMD_SPI) ? buf_out_addr_spi : buf_out_addr;
+assign	usb_in_addr_o = (j_cmd == J_CMD_SPI) ? usb_in_addr_spi : usb_in_addr;
+assign	usb_in_wren_o = (j_cmd == J_CMD_SPI) ? usb_in_wren_spi : usb_in_wren;
+assign	usb_in_data_o = (j_cmd == J_CMD_SPI) ? usb_in_data_spi : usb_in_data;
 
 always @(posedge clk) 
 begin
@@ -556,6 +588,37 @@ begin
 					usb_in_wren <= 1;
 					cnt <= 0;
 					usb_in_commit_len <= 2;
+					j_state <= J_ST_1;
+				end
+			end
+			default:	j_state <= J_ST_DEFAULT;
+			endcase
+		end		
+		
+		/********** J_CMD_SPI **********/
+		J_CMD_SPI:
+		begin
+			case(j_state)
+			J_ST_1:
+			begin
+				if(spi_ack)
+				begin
+					usb_in_commit_len <= usb_in_commit_len_spi;
+					usb_in_commit <= 1;
+					c_state <= ST_CMD_DONE; /* wait next cmd */
+					cnt <= 0;
+				end
+			end
+			J_ST_DEFAULT: 
+			begin
+				if(usb_in_ready) /*prevent owerwriting; may cause lock */
+				begin
+					buf_out_addr <= 1; /* addr */
+					/* jcmd code in reply */
+					usb_in_addr <= 0;
+					usb_in_data = J_CMD_SPI;
+					usb_in_wren <= 1;
+					cnt <= 0;
 					j_state <= J_ST_1;
 				end
 			end

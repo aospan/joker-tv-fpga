@@ -43,8 +43,8 @@
 // low frequency of system clock this can be reduced.
 // Use SPI_DIVIDER_LEN for fine tuning theexact number.
 //
-//`define SPI_DIVIDER_LEN_8
-`define SPI_DIVIDER_LEN_16
+`define SPI_DIVIDER_LEN_8
+//`define SPI_DIVIDER_LEN_16
 //`define SPI_DIVIDER_LEN_24
 //`define SPI_DIVIDER_LEN_32
 
@@ -66,12 +66,12 @@
 // Use SPI_MAX_CHAR for fine tuning the exact number, when using
 // SPI_MAX_CHAR_32, SPI_MAX_CHAR_24, SPI_MAX_CHAR_16, SPI_MAX_CHAR_8.
 //
-`define SPI_MAX_CHAR_128
+//`define SPI_MAX_CHAR_128
 //`define SPI_MAX_CHAR_64
 //`define SPI_MAX_CHAR_32
 //`define SPI_MAX_CHAR_24
 //`define SPI_MAX_CHAR_16
-//`define SPI_MAX_CHAR_8
+`define SPI_MAX_CHAR_8
 
 `ifdef SPI_MAX_CHAR_128
   `define SPI_MAX_CHAR          128  // Can only be set to 128 
@@ -123,7 +123,8 @@
 //
 // Bits of WISHBONE address used for partial decoding of SPI registers.
 //
-`define SPI_OFS_BITS	          4:2
+`define SPI_OFS_BITS	          2:0
+//`define SPI_OFS_BITS	          4:2
 
 //
 // Register offset

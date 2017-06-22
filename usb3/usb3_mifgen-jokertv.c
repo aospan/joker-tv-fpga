@@ -523,7 +523,7 @@ int main(int argc, char *argv[])
 						64,			// Endpoint0 Max packet (ignored for 3.0)
 						0x2D6B,		// Vendor ID
 						0x7777,		// Product ID
-						0x15,		// Device release number
+						0x17,		// Device release number
 						1,			// Index of Manufacturer Str Descriptor
 						2,			// Index of Product Str Descriptor
 						3,			// Index of Serial Number Str Descriptor

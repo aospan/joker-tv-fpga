@@ -31,6 +31,12 @@ module joker_tv
 (
 input    wire           clk_27,
 
+/* SPI flash pins */
+output		wire	pFLASH_SCLK,
+output		wire	pFLASH_MOSI,
+input			wire	pFLASH_MISO,
+output		wire	pFLASH_nCS,
+
 /* CI pins */
 input		wire	ci_ireq_n,
 input		wire	ci_cd1,
@@ -147,11 +153,17 @@ joker_control joker_control_inst (
 	.clk(usb_ulpi_clk /* clk_50 */),
    .reset(reset),
 	
+	/* SPI */
+	.FLASH_SCLK(pFLASH_SCLK),
+	.FLASH_MOSI(pFLASH_MOSI),
+	.FLASH_MISO(pFLASH_MISO),
+	.FLASH_nCS(pFLASH_nCS),
+	
 	/* EP2 OUT */
    .buf_out_hasdata(buf_out_hasdata), 
 	.buf_out_len(buf_out_len), 
 	.buf_out_q(buf_out_q),
-	.buf_out_addr(buf_out_addr),
+	.buf_out_addr_o(buf_out_addr),
 	.buf_out_arm_ack(buf_out_arm_ack),
 	.buf_out_arm(buf_out_arm),
 	
@@ -159,9 +171,9 @@ joker_control joker_control_inst (
    .usb_in_commit_ack(usb_in_commit_ack),
    .usb_in_commit(usb_in_commit),
 	.usb_in_ready(usb_in_ready),
-	.usb_in_addr(usb_in_addr),
-	.usb_in_data(usb_in_data),
-	.usb_in_wren(usb_in_wren),
+	.usb_in_addr_o(usb_in_addr),
+	.usb_in_data_o(usb_in_data),
+	.usb_in_wren_o(usb_in_wren),
 	.usb_in_commit_len(usb_in_commit_len),
 	
 	/* I2C pins */
@@ -194,6 +206,7 @@ joker_control joker_control_inst (
 	.cam0_ready(cam0_ready),
 	.cam0_fail(cam0_fail)
 );
+
 
 /* "low power" (suspend) mode */
 wire	suspend;
@@ -282,16 +295,15 @@ aospan_pll  apll (
 
 
 reg [31:0] source;
-wire [31:0] probe;
+reg [511:0] probe;
 
-/*
+
 `ifndef MODEL_TECH
 probe	probe_inst(
 	.probe( probe ),
 	.source(source)
 );
 `endif
-*/
 
 reg      reset;
 
