@@ -87,13 +87,14 @@ parameter	ST_SPI_IDLE=0,
 reg [31:0] source;
 reg [511:0] probe;
 
-
+/*
 `ifndef MODEL_TECH
 probe	probe_inst(
 	.probe( probe ),
 	.source(source)
 );
 `endif
+*/
 
 parameter dwidth = 32;
 parameter awidth = 32;

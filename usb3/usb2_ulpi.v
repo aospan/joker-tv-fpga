@@ -175,12 +175,14 @@ output   wire  [1:0] dbg_linestate
 reg	[31:0] source;
 reg	[31:0] probe;
 
+/* 
 `ifndef MODEL_TECH
 probe   probe_inst(
         .probe( probe ),
         .source(source)
 );
 `endif
+*/
 
 synchronizer resume_ss (
 	.clk (phy_clk),

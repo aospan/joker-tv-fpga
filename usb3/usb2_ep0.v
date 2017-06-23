@@ -156,13 +156,15 @@ output	reg				err_setup_pkt
 reg [31:0] source;
 reg [511:0] probe;
 	
+/*	
 `ifndef MODEL_TECH
 probe	probe_inst(
 	.probe( probe ),
 	.source(source)
 );
 `endif
-	
+*/
+
 always @(posedge phy_clk) begin
 	// probe[30] <= ~probe[30];
 	
