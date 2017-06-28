@@ -218,6 +218,7 @@ usb2_crc16 ic16 (
 	assign dbg_pkt_type = pkt_type;
 	
 	reg [8:0] buflen;
+	reg keep_buf;
 	
 always @(posedge phy_clk) begin
 
@@ -259,7 +260,7 @@ always @(posedge phy_clk) begin
 		pid_stored <= 0;
 		pid_last <= 0;
 		local_dev_addr <= 0;
-		
+		keep_buf <= 0;
 		buf_in_commit <= 0;
 		buf_out_arm <= 0;
 		
@@ -506,17 +507,23 @@ always @(posedge phy_clk) begin
 			//bytes_sent <= 0;
 			state <= ST_OUT_0;
 		end else begin
-			// wait a bit
+			// wait a bit (about 16.6 * 31 ns)
 			if(dc == 31) begin
-				// probe[25] <= ~probe[25];
 				// not ready, NAK
 				//if(bytes_sent != bytes_tosend) begin
+				if (endp_mode == EP_MODE_ISOCH)
+				begin
+					// send zero length isoc packet 
+					// if we don't have any data in  buffer
+					// otherwise we will get error transfer on host side
+					// see: https://github.com/philemonf/libusb/pull/1
+					bc <= 11'h2;
+					keep_buf <= 1;
+				end else begin
 					pid_send <= PID_HAND_NAK;
 					bc <= 0;
-				//end else begin
-				//	bc <= 2;
-				//end
-				state <= (endp_mode == EP_MODE_ISOCH) ? ST_WAIT_EOP : ST_OUT_0;
+				end
+				state <= ST_OUT_0;
 			end
 		end
 	end
@@ -575,7 +582,12 @@ always @(posedge phy_clk) begin
 					// but with isochronous there will never be an ACK.
 					// re-arm the buffer right after completion.
 					// data_toggle_act <= 1; // aospan: no need for isoc (see usb 2.0 standard)
-					buf_out_arm <= 1;
+					// we sending zero length isoc packet if keep_buf == 1,
+					// so we don't  need to clean buffer
+					if (keep_buf == 1)
+						keep_buf <= 0;
+					else
+						buf_out_arm <= 1;
 				end
 			end else begin
 				// switch mux to bram
