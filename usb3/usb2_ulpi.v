@@ -607,7 +607,7 @@ always @(posedge phy_clk) begin
       tx_reg_data_wr <= {  2'b01,      // Resvd, SuspendM [disabled]
                      1'b0,       // Reset (auto-cleared by PHY)
                      2'b10,      // OpMode [chirp]
-                     1'b0,    // TermSelect [enable]
+                     1'b1,    // TermSelect [enable]
                      2'b00    // XcvrSel [high speed]
       };
       state <= ST_TXCMD_0; 
