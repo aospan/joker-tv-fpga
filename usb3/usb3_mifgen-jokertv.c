@@ -20,7 +20,7 @@
 #define u16	unsigned short
 #define u32	unsigned int
 
-#define FW_RELEASE 0x20
+#define FW_RELEASE 0x24
 
 // to add endpoints, change strings etc, just skip to main() at bottom
 //
