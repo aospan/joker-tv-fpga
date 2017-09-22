@@ -117,7 +117,9 @@ output   wire  [1:0] dbg_linestate
    
    reg            can_send;
    reg      [3:0] can_send_delay;
-   
+   reg             [3:0] chirp_k_seen;
+   reg             [3:0] chirp_j_seen;
+		  
    reg      [6:0] state;
    reg      [6:0] state_next;
    parameter [6:0]   ST_RST_0       = 7'd0,
@@ -144,7 +146,8 @@ output   wire  [1:0] dbg_linestate
                ST_SUSPEND_ACT          = 7'd57,
                ST_SUSPEND_ACT2         = 7'd58,
                ST_SUSPEND_OR_RESET     = 7'd59,
-               ST_SUSPEND_ACT3         = 7'd60;
+               ST_SUSPEND_ACT3         = 7'd60,
+	       ST_CHIRP_WAIT_KJKJKJ        = 7'd61;
 					
    reg      [7:0] dc;
    reg      [11:0]   dc_wrap;
@@ -311,6 +314,8 @@ always @(posedge phy_clk) begin
       dc <= 0;
       dc_wrap <= 0;
       pkt_in_latch_defer <= 0;
+      chirp_k_seen <= 0;
+      chirp_j_seen <= 0;
 		
       // stay stuck in reset, if disable is specified
       if(opt_disable_all) 
@@ -629,34 +634,48 @@ always @(posedge phy_clk) begin
          if(dc_wrap == 600) begin
             // a bit over 2ms has passed
             phy_stp_out <= 1'b1;
-            state <= ST_CHIRP_3;
+	    chirp_k_seen <= 0;
+	    chirp_j_seen <= 0;
+	    state <= ST_CHIRP_WAIT_KJKJKJ;
          end
       end
    end
-   ST_CHIRP_3: begin
-      if(phy_dir & ~phy_dir_1) begin
-         // rising edge of dir
-         state <= ST_RX_0;
-         state_next <= ST_CHIRP_4;
-      end
-   end
-   ST_CHIRP_4: begin
-      tx_cmd_code <=       TX_CMD_REGWR_IMM;
-      tx_reg_addr <=       6'h4;
-      tx_reg_data_wr <= {  2'b01,      // Resvd, SuspendM [disabled]
-                     1'b0,       // Reset (auto-cleared by PHY)
-                     2'b00,      // OpMode [normal]
-                     1'b0,    // TermSelect [enable]
-                     2'b00    // XcvrSel [high speed]
-      };
-      if(~phy_dir && phy_d_in == 8'h0) state <= ST_TXCMD_0; 
-      state_next <= ST_CHIRP_5;
-   end
-   ST_CHIRP_5: begin
-      stat_hs <= 1'b1;
-      state <= ST_IDLE;
-   end
-   default: state <= ST_RST_0;
+   ST_CHIRP_WAIT_KJKJKJ: begin
+	   /* according ULPI spec rev 1.1:
+	   minimum K-J-K-J-K-J sequence should be seen
+	   before enabling HS termination
+	   */
+	  if (chirp_k_seen > 3 && chirp_j_seen > 3) begin
+		  // now we can switch to normal HS mode
+		  state <= ST_CHIRP_3;
+	  end
+	  else if(phy_dir & ~phy_dir_1) begin
+		  state <= ST_RX_0;
+		  state_next <= ST_CHIRP_WAIT_KJKJKJ;
+		  if (line_state == 2'b01)
+			  chirp_k_seen <= chirp_k_seen + 1;
+		  if (line_state == 2'b10)
+			  chirp_j_seen <= chirp_j_seen + 1;
+	  end
+  end
+  ST_CHIRP_3: begin
+	  // switch to normal HS mode now
+	  tx_cmd_code <=       TX_CMD_REGWR_IMM;
+	  tx_reg_addr <=       6'h4;
+	  tx_reg_data_wr <= {  2'b01,      // Resvd, SuspendM [disabled]
+		  1'b0,       // Reset (auto-cleared by PHY)
+		  2'b00,      // OpMode [normal]
+		  1'b0,    // TermSelect [enable]
+		  2'b00    // XcvrSel [high speed]
+		  };
+		  if(~phy_dir && phy_d_in == 8'h0) state <= ST_TXCMD_0; 
+		  state_next <= ST_CHIRP_5;
+  end
+  ST_CHIRP_5: begin
+	  stat_hs <= 1'b1;
+	  state <= ST_IDLE;
+  end
+  default: state <= ST_RST_0;
    endcase
 
    if(~reset_2) state <= ST_RST_0;
