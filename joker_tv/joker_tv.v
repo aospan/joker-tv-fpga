@@ -343,7 +343,7 @@ reg   reset_n_q1, reset_n_q2, reset_n_q3;
 reg   usb0_phy_ready_q3, usb0_phy_ready_q2, usb0_phy_ready_q1;
 reg   usb1_phy_ready_q3, usb1_phy_ready_q2, usb1_phy_ready_q1;
 
-always @(posedge clk_50) begin
+always @(posedge usb_ulpi_clk) begin
    { reset_n_q3, reset_n_q2, reset_n_q1 } <= { reset_n_q2, reset_n_q1, reset_n };
 end
 
@@ -359,7 +359,7 @@ reg   [ 7:0]   count_clk_in_us;
 reg            pulse_1us;
 reg   [31:0]   count_us;
 
-parameter count_board_reset = 50000000;   // 1sec
+parameter count_board_reset = 500000;   // about 10msec
 
 
 reg   [31:0]   count_1;
@@ -386,7 +386,7 @@ always @(posedge clk_50) begin
    end
 end
 
-always @(posedge clk_50) begin
+always @(posedge usb_ulpi_clk) begin
    count_1 <= count_1 + 1'b1;
    if(count_1 >= count_board_reset) reset <= 0;
 end
