@@ -42,6 +42,15 @@ set_time_format -unit ns -decimal_places 3
 # Main DVB clock
 create_clock -name {SYSCLK} -period "27 MHz" [get_ports {clk_27}]
 
+# ATSC
+create_clock -name {ATSC_CLOCK} -period "60 MHz" [get_ports {lg_clk}]
+
+# DTMB
+create_clock -name {DTMB_CLOCK} -period "60 MHz" [get_ports {TS_ATBM8881_CLK}]
+
+# SONY
+create_clock -name {SONY_CLOCK} -period "135 MHz" [get_ports {sony_clk}]
+
 # ULPI 
 create_clock -name {usb_ulpi_clk} -period "60 MHz" [get_ports {usb_ulpi_clk}]
 
