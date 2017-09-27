@@ -54,6 +54,7 @@ module joker_control
 	output	wire	ci_bus_dir,
 	input		wire	ci_wait_n,
 	output	wire	ci_iowr_n,
+	output	wire	ci_iord_n,
 	output	wire	ci_oe_n,
 	output	wire	ci_we_n,
 	output	wire	ci_d_en,
@@ -123,9 +124,13 @@ opencores_i2c i2c_inst (
 
 // CI part (Common Interface)
 reg 	cam_read;
+reg 	cam_write;
 wire	cam_waitreq;
 wire	[7:0]	cam_readdata;
 reg	[17:0] cam_address;
+reg	[7:0] cam_writedata;
+wire	[7:0] ci_d_out;
+wire	[7:0] ci_d_in;
 
 ci_bridge ci_bridge_inst (
 	.clk(clk),
@@ -139,19 +144,22 @@ ci_bridge ci_bridge_inst (
 	.cia_reset(ci_reset),
 	.cia_data_buf_oe_n(ci_data_buf_oe_n),
 	.ci_a(ci_a),
-	.ci_d_in(ci_d),
-	//.ci_d_out(ci_d),
+	.ci_d_in(ci_d_in),
+	.ci_d_out(ci_d_out),
 	.ci_bus_dir(ci_bus_dir),
 	.cia_wait_n(ci_wait_n),
 	.ci_iowr_n(ci_iowr_n),
+	.ci_iord_n(ci_iord_n),
 	.ci_oe_n(ci_oe_n),
 	.ci_we_n(ci_we_n),
 	.cam0_ready(cam0_ready),
 	.cam0_fail(cam0_fail),
 	// .cam0_bypass(probe[11]),
-	// .ci_d_en(probe[8] /* ci_d_en */),
+	.ci_d_en(ci_d_en),
 	.cam_readdata(cam_readdata),
+	.cam_writedata(cam_writedata),
 	.cam_read(cam_read),
+	.cam_write(cam_write),
 	.cam_waitreq(cam_waitreq),
 	.cam_address(cam_address),
 	.ci_reg_n(ci_reg_n),
@@ -211,6 +219,11 @@ assign	buf_out_addr_o = (j_cmd == J_CMD_SPI) ? buf_out_addr_spi : buf_out_addr;
 assign	usb_in_addr_o = (j_cmd == J_CMD_SPI) ? usb_in_addr_spi : usb_in_addr;
 assign	usb_in_wren_o = (j_cmd == J_CMD_SPI) ? usb_in_wren_spi : usb_in_wren;
 assign	usb_in_data_o = (j_cmd == J_CMD_SPI) ? usb_in_data_spi : usb_in_data;
+
+/* mux in/out for ci data */
+assign	ci_d = (ci_d_en) ? ci_d_out : 'bz;
+assign	ci_d_in = (ci_d_en) ? 'bz : ci_d;
+
 
 always @(posedge clk) 
 begin
@@ -550,13 +563,52 @@ begin
 			begin
 				if (cnt > 2)
 				begin
-					cam_address <= buf_out_q[7:0]; /* data from addr=1 */	
-					cam_read <= 1;
+					cam_address[15:8] <= buf_out_q[7:0]; /* data from addr=1 */	
 					cnt <= 0;
+					buf_out_addr <= 2;
 					j_state <= J_ST_2;
 				end
-			end
+			end			
 			J_ST_2:
+			begin
+				if (cnt > 2)
+				begin
+					cam_address[7:0] <= buf_out_q[7:0]; /* data from addr=2 */
+					cnt <= 0;
+					buf_out_addr <= 3;
+					j_state <= J_ST_3;
+				end
+			end
+			J_ST_3:
+			begin
+				if (cnt > 2)
+				begin
+					/* mem or io */
+					if (cam_address[15] == 1'b1) begin
+						cam_address[16] <= 1'b0; /* REG# always low (active) ? */
+						cam_address[15] <= 1'b0; /* mem */
+					end else begin
+						cam_address[16] <= 1'b0; /* REG# always low (active) ? */
+						cam_address[15] <= 1'b1; /* io  */
+					end
+					
+					/* read or write */
+					if (cam_address[14] == 1'b1) begin
+						cam_write <= 1;
+						cam_read <= 0;
+						cam_address[14] <= 1'b0;
+					end 
+					else begin
+						cam_write <= 0;
+						cam_read <= 1;
+						cam_address[14] <= 1'b0;
+					end
+					cam_writedata[7:0] <= buf_out_q[7:0]; /* data from addr=3 */
+					cnt <= 0;
+					j_state <= J_ST_4;
+				end
+			end	
+			J_ST_4:
 			begin
 				if (~cam_waitreq)
 				begin
@@ -564,10 +616,12 @@ begin
 					usb_in_addr <= 1;
 					usb_in_data <= cam_readdata;
 					cnt <= 0;
-					j_state <= J_ST_3;
+					j_state <= J_ST_5;
+					cam_write <= 0;
+					cam_read <= 0;
 				end
 			end
-			J_ST_3:
+			J_ST_5:
 			begin
 				if (cnt > 2)
 				begin

@@ -219,4 +219,8 @@ set_global_assignment -name VERILOG_FILE ../opencores_i2c/i2c_master_bit_ctrl.v
 set_global_assignment -name VERILOG_FILE ../opencores_i2c/i2c_master_byte_ctrl.v
 set_global_assignment -name VERILOG_FILE ../opencores_i2c/opencores_i2c.v
 set_global_assignment -name VERILOG_FILE ../opencores_i2c/i2c_master_top.v
+set_global_assignment -name ENABLE_SIGNALTAP OFF
+set_global_assignment -name USE_SIGNALTAP_FILE joker_tv.stp
+set_global_assignment -name SIGNALTAP_FILE joker_tv.stp
+set_location_assignment PIN_P8 -to ci_iord_n
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
