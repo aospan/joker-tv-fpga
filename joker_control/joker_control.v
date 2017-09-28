@@ -76,7 +76,7 @@ reg   reset_prev;
 reg	buf_out_arm_ack_prev;
 reg	usb_in_commit_ack_prev;
 
-
+reg ci_do_reset;
 
 // main states
 reg [3:0] c_state = 4'b0000;
@@ -134,7 +134,7 @@ wire	[7:0] ci_d_in;
 
 ci_bridge ci_bridge_inst (
 	.clk(clk),
-	.rst(reset),
+	.rst(ci_do_reset /* reset */),
 	
 	/* only first CI (cia) used */
 	.cia_ireq_n(ci_ireq_n),
@@ -244,6 +244,8 @@ begin
 		
 	cnt <= cnt + 1;
 	
+	ci_do_reset <= 0;
+	
 	probe[7:0] <= reset_ctrl;
 	probe[9] <= cam0_ready;
 	probe[10] <= cam0_fail;
@@ -255,6 +257,7 @@ begin
 		cnt <= 0;
 		buf_out_addr <= 0;
 		buf_out_arm <= 0;
+		ci_do_reset <= 0;
 		// probe <= 0;
 		c_state <= ST_IDLE;
 		j_cmd <= 0;
@@ -426,8 +429,11 @@ begin
 			begin
 				if (cnt > 2)
 				begin
-					reset_ctrl <= buf_out_q[7:0]; /* data from addr=1 */	
+					/* if CAM module poweron detected */
+					if (reset_ctrl[6] && !buf_out_q[6])
+						ci_do_reset <= 1;
 					c_state <= ST_CMD_DONE; /* wait next cmd */
+					reset_ctrl <= buf_out_q[7:0]; /* data from addr=1 */
 				end
 			end
 			J_ST_DEFAULT: 
