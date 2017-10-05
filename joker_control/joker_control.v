@@ -97,7 +97,8 @@ parameter	J_ST_DEFAULT=0,
 				J_ST_2=11,
 				J_ST_3=12,
 				J_ST_4=13,
-				J_ST_5=14;
+				J_ST_5=14,
+				J_ST_6=15;
 
 // i2c part
 reg i2c_we;
@@ -589,6 +590,12 @@ begin
 			begin
 				if (cnt > 2)
 				begin
+					cam_writedata[7:0] <= buf_out_q[7:0]; /* data from addr=3 */
+					j_state <= J_ST_4;
+				end
+			end
+			J_ST_4:
+			begin
 					/* mem or io */
 					if (cam_address[15] == 1'b1) begin
 						cam_address[16] <= 1'b0; /* REG# always low (active) ? */
@@ -609,12 +616,10 @@ begin
 						cam_read <= 1;
 						cam_address[14] <= 1'b0;
 					end
-					cam_writedata[7:0] <= buf_out_q[7:0]; /* data from addr=3 */
 					cnt <= 0;
-					j_state <= J_ST_4;
-				end
+					j_state <= J_ST_5;
 			end	
-			J_ST_4:
+			J_ST_5:
 			begin
 				if (~cam_waitreq)
 				begin
@@ -622,12 +627,12 @@ begin
 					usb_in_addr <= 1;
 					usb_in_data <= cam_readdata;
 					cnt <= 0;
-					j_state <= J_ST_5;
+					j_state <= J_ST_6;
 					cam_write <= 0;
 					cam_read <= 0;
 				end
 			end
-			J_ST_5:
+			J_ST_6:
 			begin
 				if (cnt > 2)
 				begin
