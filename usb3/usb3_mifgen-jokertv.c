@@ -15,12 +15,12 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <iconv.h>
+#include <unistd.h>
+#include <getopt.h>
 
 #define u8	unsigned char
 #define u16	unsigned short
 #define u32	unsigned int
-
-#define FW_RELEASE 0x26
 
 // to add endpoints, change strings etc, just skip to main() at bottom
 //
@@ -492,14 +492,40 @@ void add_status()
 	write_buf("\x00\x00", 2);
 }
 
+void help() {
+        printf("Usage:\n");
+	// can be checked:
+	// $ lsusb -D /dev/bus/usb/002/008  | grep bcdDevice
+	//       bcdDevice            0.20
+        printf("        -r revision	Joker TV firmware revision\n");
+	exit(0);
+}
+
 int main(int argc, char *argv[])
 {
 	u32 temp1, temp2;
 	i_2 = 0;
 	i_3 = 0;
-
+	int c = 0;
+	int fw_revision = -1; // mandatory
 
 	printf("\n* Daisho USB 3.0 / USB 2.0 descriptor export tool\n  by marshallh, 2013\n");
+	printf("\n* Joker TV modification by Abylay Ospan, 2017\n");
+
+        while ((c = getopt (argc, argv, "r:")) != -1) {
+                switch (c)
+                {
+                        case 'r':
+                                fw_revision = atoi(optarg);
+                                break;
+                        default:
+                                help();
+                                return 0;
+                }
+        }
+
+	if (fw_revision < 0)
+		help();
 
 	fail(mif_2 = fopen(filename_usb2_mif, "w"), "Failed opening USB2.0 MIF");
 	fail(mif_3 = fopen(filename_usb3_mif, "w"), "Failed opening USB3.0 MIF");
@@ -525,7 +551,7 @@ int main(int argc, char *argv[])
 						64,			// Endpoint0 Max packet (ignored for 3.0)
 						0x2D6B,		// Vendor ID
 						0x7777,		// Product ID
-						FW_RELEASE,		// Device release number
+						fw_revision,		// Device release number
 						1,			// Index of Manufacturer Str Descriptor
 						2,			// Index of Product Str Descriptor
 						3,			// Index of Serial Number Str Descriptor
