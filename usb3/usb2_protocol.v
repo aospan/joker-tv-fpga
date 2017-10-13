@@ -261,7 +261,7 @@ usb2_ep0 iep0 (
 usb2_ep iep1 (
 	.phy_clk		( phy_clk ),
 	.rd_clk			( phy_clk ),
-	.wr_clk			( ext_clk ),
+	.wr_clk			( phy_clk ),
 	
 	.reset_n		( reset_n ),
 
@@ -294,7 +294,7 @@ usb2_ep iep1 (
 
 usb2_ep iep2 (
 	.phy_clk		( phy_clk ),
-	.rd_clk			( ext_clk ),
+	.rd_clk			( phy_clk ),
 	.wr_clk			( phy_clk ),
 	
 	.reset_n		( reset_n ),
