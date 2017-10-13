@@ -607,6 +607,7 @@ always @(posedge phy_clk) begin
    // high-speed handshake chirp
    //
    ST_CHIRP_0: begin
+		reset_ulpi <= 0;
       tx_cmd_code <=       TX_CMD_REGWR_IMM;
       tx_reg_addr <=       6'h4;
       tx_reg_data_wr <= {  2'b01,      // Resvd, SuspendM [disabled]
@@ -619,6 +620,7 @@ always @(posedge phy_clk) begin
       state_next <= ST_CHIRP_1;
    end
    ST_CHIRP_1: begin
+		reset_ulpi <= 1;
       // transmit chirp K for >1ms (2ms)
       tx_cmd_code <=       TX_CMD_XMIT_NOPID;
       tx_reg_addr <=       6'h4;
