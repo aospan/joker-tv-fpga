@@ -83,22 +83,24 @@ reg [3:0] c_state = 4'b0000;
 parameter ST_RESET=0, ST_IDLE=1, ST_CMD=2, ST_CMD_DONE=3, ST_READ_CMD=4;
 
 // states inside j_cmd processing
-reg [3:0] j_state = 4'b0000;
-parameter	J_ST_DEFAULT=0,
-				J_ST_I2C_WRITE=1, 
-				J_ST_I2C_WRITE2=2,
-				J_ST_I2C_WRITE3=3,
-				J_ST_I2C_WRITE_WAIT_ACK=4,
-				J_ST_I2C_READ=5,
-				J_ST_I2C_READ2=6,
-				J_ST_I2C_READ3=7,
-				J_ST_I2C_READ4=8,
+reg [7:0] j_state;
+parameter	J_ST_DEFAULT=1,
+				J_ST_I2C_WRITE=2, 
+				J_ST_I2C_WRITE2=3,
+				J_ST_I2C_WRITE3=4,
+				J_ST_I2C_WRITE_WAIT_ACK=5,
+				J_ST_I2C_READ=6,
+				J_ST_I2C_READ2=7,
+				J_ST_I2C_READ3=8,
+				J_ST_I2C_READ4=9,
 				J_ST_1=10,
 				J_ST_2=11,
 				J_ST_3=12,
 				J_ST_4=13,
 				J_ST_5=14,
-				J_ST_6=15;
+				J_ST_6=15,
+				J_ST_7=16,
+				J_ST_8=17;
 
 // i2c part
 reg i2c_we;
@@ -123,67 +125,11 @@ opencores_i2c i2c_inst (
    .sda_pad_io  (io_sda)
 );
 
-// CI part (Common Interface)
-reg 	cam_read;
-reg 	cam_write;
-wire	cam_waitreq;
-wire	[7:0]	cam_readdata;
-reg	[17:0] cam_address;
-reg	[7:0] cam_writedata;
-wire	[7:0] ci_d_out;
-wire	[7:0] ci_d_in;
-
-ci_bridge ci_bridge_inst (
-	.clk(clk),
-	.rst(ci_do_reset /* reset */),
-	
-	/* only first CI (cia) used */
-	.cia_ireq_n(ci_ireq_n),
-	.cia_cd_n( {ci_cd1, ci_cd2} ),
-	.cia_overcurrent_n (ci_overcurrent_n),
-	.cia_reset_buf_oe_n(ci_reset_oe_n),
-	.cia_reset(ci_reset),
-	.cia_data_buf_oe_n(ci_data_buf_oe_n),
-	.ci_a(ci_a),
-	.ci_d_in(ci_d_in),
-	.ci_d_out(ci_d_out),
-	.ci_bus_dir(ci_bus_dir),
-	.cia_wait_n(ci_wait_n),
-	.ci_iowr_n(ci_iowr_n),
-	.ci_iord_n(ci_iord_n),
-	.ci_oe_n(ci_oe_n),
-	.ci_we_n(ci_we_n),
-	.cam0_ready(cam0_ready),
-	.cam0_fail(cam0_fail),
-	// .cam0_bypass(probe[11]),
-	.ci_d_en(ci_d_en),
-	.cam_readdata(cam_readdata),
-	.cam_writedata(cam_writedata),
-	.cam_read(cam_read),
-	.cam_write(cam_write),
-	.cam_waitreq(cam_waitreq),
-	.cam_address(cam_address),
-	.ci_reg_n(ci_reg_n),
-	.cia_ce_n(ci_ce_n)	
-);
-
 reg source_1;
 
 /* counter and times (calculated for 50MHZ clock) */
 reg [31:0] cnt;
 parameter	TIME_1US=50, TIME_1MS=20000, TIME_100MS=2000000;
-
-reg [31:0] source;
-reg [31:0] probe;
-
-/*
-`ifndef MODEL_TECH
-probe	probe_inst(
-	.probe( probe ),
-	.source(source)
-);
-`endif
-*/
 
 // SPI part
 wire	spi_ack;
@@ -194,8 +140,8 @@ reg	[10:0]	usb_in_addr;
 wire	usb_in_wren_spi;
 reg	usb_in_wren;
 wire	[10:0]	usb_in_commit_len_spi;
-wire	[10:0]	usb_in_data_spi;
-reg	[10:0]	usb_in_data;
+wire	[7:0]	usb_in_data_spi;
+reg	[7:0]	usb_in_data;
 
 joker_spi joker_spi_inst(
 	.clk(clk),
@@ -215,15 +161,62 @@ joker_spi joker_spi_inst(
 	.FLASH_nCS(FLASH_nCS)	
 );
 
-/* mux usb EP's between submodules */
-assign	buf_out_addr_o = (j_cmd == J_CMD_SPI) ? buf_out_addr_spi : buf_out_addr;
-assign	usb_in_addr_o = (j_cmd == J_CMD_SPI) ? usb_in_addr_spi : usb_in_addr;
-assign	usb_in_wren_o = (j_cmd == J_CMD_SPI) ? usb_in_wren_spi : usb_in_wren;
-assign	usb_in_data_o = (j_cmd == J_CMD_SPI) ? usb_in_data_spi : usb_in_data;
+// CI part
+wire	ci_ack;
+wire	[10:0]	buf_out_addr_ci;
+wire	[10:0]	usb_in_addr_ci;
+wire	usb_in_wren_ci;
+wire	[10:0]	usb_in_commit_len_ci;
+wire	[7:0]	usb_in_data_ci;
 
-/* mux in/out for ci data */
-assign	ci_d = (ci_d_en) ? ci_d_out : 'bz;
-assign	ci_d_in = (ci_d_en) ? 'bz : ci_d;
+joker_ci joker_ci_inst(
+	.clk(clk),
+	.reset(reset),
+	.ci_do_reset(ci_do_reset),
+	.j_cmd(j_cmd),
+	.ack_o(ci_ack),
+	.buf_out_addr(buf_out_addr_ci),
+	.buf_out_len(buf_out_len),
+	.buf_out_q(buf_out_q),
+	.usb_in_addr(usb_in_addr_ci),
+	.usb_in_wren(usb_in_wren_ci),
+	.usb_in_commit_len(usb_in_commit_len_ci),
+	.usb_in_data(usb_in_data_ci),
+	
+	// only first CI (cia) used
+	.ci_ireq_n(ci_ireq_n),
+	.ci_cd1(ci_cd1),
+	.ci_cd2(ci_cd2),
+	.ci_overcurrent_n (ci_overcurrent_n),
+	.ci_reset_oe_n(ci_reset_oe_n),
+	.ci_reset(ci_reset),
+	.ci_data_buf_oe_n(ci_data_buf_oe_n),
+	.ci_a(ci_a),
+	.ci_d(ci_d),
+	.ci_bus_dir(ci_bus_dir),
+	.ci_wait_n(ci_wait_n),
+	.ci_iowr_n(ci_iowr_n),
+	.ci_iord_n(ci_iord_n),
+	.ci_oe_n(ci_oe_n),
+	.ci_we_n(ci_we_n),
+	.cam0_ready(cam0_ready),
+	.cam0_fail(cam0_fail),
+	// .cam0_bypass(probe[11]),
+	.ci_d_en(ci_d_en),
+	.ci_reg_n(ci_reg_n),
+	.ci_ce_n(ci_ce_n)	
+);
+
+/* mux usb EP's between submodules */
+assign	buf_out_addr_o = (j_cmd == J_CMD_SPI) ? buf_out_addr_spi : 
+								(j_cmd == J_CMD_CI_RW) ? buf_out_addr_ci : buf_out_addr;
+assign	usb_in_addr_o = (j_cmd == J_CMD_SPI) ? usb_in_addr_spi :
+								(j_cmd == J_CMD_CI_RW) ? usb_in_addr_ci : usb_in_addr;
+assign	usb_in_wren_o = (j_cmd == J_CMD_SPI) ? usb_in_wren_spi : 
+								(j_cmd == J_CMD_CI_RW) ? usb_in_wren_ci : usb_in_wren;
+assign	usb_in_data_o = (j_cmd == J_CMD_SPI) ? usb_in_data_spi : 
+								(j_cmd == J_CMD_CI_RW) ? usb_in_data_ci : usb_in_data;
+
 
 
 always @(posedge clk) 
@@ -242,15 +235,8 @@ begin
 		usb_in_commit <= 0;
 	end
 	usb_in_commit_ack_prev <= usb_in_commit_ack;
-		
 	cnt <= cnt + 1;
-	
 	ci_do_reset <= 0;
-	
-	probe[7:0] <= reset_ctrl;
-	probe[9] <= cam0_ready;
-	probe[10] <= cam0_fail;
-	probe[23:16] <= c_state;
 	   
    case(c_state)
    ST_RESET:
@@ -262,6 +248,7 @@ begin
 		// probe <= 0;
 		c_state <= ST_IDLE;
 		j_cmd <= 0;
+		j_state <= 0;
 		i2c_we <= 0;
 		i2c_stb <= 0;
 		i2c_addr <= 0;
@@ -286,7 +273,6 @@ begin
 		reset_ctrl <= 8'hBF; /* unreset CI power by default */ 
 		insel <= 0;
 		isoc_commit_len <= 11'd512;
-		cam_read <= 0;
    end
    
    ST_IDLE:
@@ -561,83 +547,17 @@ begin
 			default:	j_state <= J_ST_DEFAULT;
 			endcase
 		end				
-		
-		/********** J_CMD_CI_READ_MEM **********/
-		J_CMD_CI_READ_MEM:
+
+		/********** J_CMD_CI_RW **********/
+		J_CMD_CI_RW:
 		begin
 			case(j_state)
 			J_ST_1:
 			begin
-				if (cnt > 2)
+				if(ci_ack)
 				begin
-					cam_address[15:8] <= buf_out_q[7:0]; /* data from addr=1 */	
-					cnt <= 0;
-					buf_out_addr <= 2;
-					j_state <= J_ST_2;
-				end
-			end			
-			J_ST_2:
-			begin
-				if (cnt > 2)
-				begin
-					cam_address[7:0] <= buf_out_q[7:0]; /* data from addr=2 */
-					cnt <= 0;
-					buf_out_addr <= 3;
-					j_state <= J_ST_3;
-				end
-			end
-			J_ST_3:
-			begin
-				if (cnt > 2)
-				begin
-					cam_writedata[7:0] <= buf_out_q[7:0]; /* data from addr=3 */
-					j_state <= J_ST_4;
-				end
-			end
-			J_ST_4:
-			begin
-					/* mem or io */
-					if (cam_address[15] == 1'b1) begin
-						cam_address[16] <= 1'b0; /* REG# always low (active) ? */
-						cam_address[15] <= 1'b0; /* mem */
-					end else begin
-						cam_address[16] <= 1'b0; /* REG# always low (active) ? */
-						cam_address[15] <= 1'b1; /* io  */
-					end
-					
-					/* read or write */
-					if (cam_address[14] == 1'b1) begin
-						cam_write <= 1;
-						cam_read <= 0;
-						cam_address[14] <= 1'b0;
-					end 
-					else begin
-						cam_write <= 0;
-						cam_read <= 1;
-						cam_address[14] <= 1'b0;
-					end
-					cnt <= 0;
-					j_state <= J_ST_5;
-			end	
-			J_ST_5:
-			begin
-				if (~cam_waitreq)
-				begin
-					cam_read <= 0;
-					usb_in_addr <= 1;
-					usb_in_data <= cam_readdata;
-					cnt <= 0;
-					j_state <= J_ST_6;
-					cam_write <= 0;
-					cam_read <= 0;
-				end
-			end
-			J_ST_6:
-			begin
-				if (cnt > 2)
-				begin
+					usb_in_commit_len <= usb_in_commit_len_ci;
 					usb_in_commit <= 1;
-					usb_in_wren <= 0;
 					c_state <= ST_CMD_DONE; /* wait next cmd */
 					cnt <= 0;
 				end
@@ -649,10 +569,9 @@ begin
 					buf_out_addr <= 1; /* addr */
 					/* jcmd code in reply */
 					usb_in_addr <= 0;
-					usb_in_data = J_CMD_CI_READ_MEM;
+					usb_in_data = J_CMD_CI_RW;
 					usb_in_wren <= 1;
 					cnt <= 0;
-					usb_in_commit_len <= 2;
 					j_state <= J_ST_1;
 				end
 			end

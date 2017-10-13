@@ -10,7 +10,6 @@ parameter 	J_CMD_VERSION=0, /* return fw version */
 				J_CMD_ISOC_LEN_WRITE_HI=16, /* USB isoc transfers length */
 				J_CMD_ISOC_LEN_WRITE_LO=17,
 				J_CMD_CI_STATUS=20, /* CI - common interface */
-				J_CMD_CI_READ_MEM=21, 
-				J_CMD_CI_WRITE_MEM=22,
+				J_CMD_CI_RW=22,  /* CAM IO/MEM RW */
 				J_CMD_SPI=30
 				;

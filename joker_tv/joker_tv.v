@@ -241,7 +241,6 @@ reg [7:0] wr_cnt = 8'b00000000;
 wire [1:0] insel;
 wire [10:0] isoc_commit_len;
 wire	[7:0] reset_ctrl;
-// reg [7:0] reset_ctrl = 8'hF3;
 	
 /* '1' - mean in reset state (disabled)
  * '0' - mean in unreset state  (enabled) */
