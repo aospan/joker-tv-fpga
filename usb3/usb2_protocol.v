@@ -49,7 +49,7 @@ output	wire			ext_buf_out_hasdata,
 input	wire			ext_buf_out_arm,
 output	wire			ext_buf_out_arm_ack,
 
-// EXTERNAL EP3 (Transport Stream)
+// EXTERNAL EP3 (Transport Stream to host. Isoc)
 input	wire	[10:0]	ep3_ext_buf_in_addr,
 input	wire	[7:0]	ep3_ext_buf_in_data,
 input	wire			ep3_ext_buf_in_wren,
@@ -63,6 +63,14 @@ output	wire	[9:0]	ep3_ext_buf_out_len,
 output	wire			ep3_ext_buf_out_hasdata,
 input	wire			ep3_ext_buf_out_arm,
 output	wire			ep3_ext_buf_out_arm_ack,
+
+// EXTERNAL EP4 (Transport Stream from host. Bulk)
+input	wire	[8:0]	ep4_buf_out_addr,
+output	wire	[7:0]	ep4_buf_out_q,
+output	wire	[9:0]	ep4_buf_out_len,
+output	wire			ep4_buf_out_hasdata,
+input	wire			ep4_buf_out_arm,
+output	wire			ep4_buf_out_arm_ack,
 
 output	wire	[1:0]	endp_mode,
 
@@ -85,7 +93,8 @@ output	wire			err_setup_pkt
 	parameter [3:0]	SEL_ENDP0 			= 4'd0,
 					SEL_ENDP1 			= 4'd1,
 					SEL_ENDP2 			= 4'd2,
-					SEL_ENDP3 			= 4'd3;
+					SEL_ENDP3 			= 4'd3,
+					SEL_ENDP4 			= 4'd4;
 					
 	parameter [1:0]	EP_MODE_CONTROL		= 2'd0,
 					EP_MODE_ISOCH		= 2'd1,
@@ -97,7 +106,8 @@ output	wire			err_setup_pkt
 	// in the descriptor strings
 	wire	[1:0]	EP1_MODE			= EP_MODE_BULK;
 	wire	[1:0]	EP2_MODE			= EP_MODE_BULK;
-	wire	[1:0]	EP3_MODE			= EP_MODE_ISOCH /* EP_MODE_BULK */;
+	wire	[1:0]	EP3_MODE			= EP_MODE_ISOCH;
+	wire	[1:0]	EP4_MODE			= EP_MODE_BULK;
 		
 	// mux bram signals
 	wire	[5:0]	ep0_buf_in_addr		= 	sel_endp == SEL_ENDP0 ? buf_in_addr[5:0] : 6'h0;
@@ -135,6 +145,17 @@ output	wire			err_setup_pkt
 	wire			ep2_buf_in_commit_ack;
 	wire			ep2_data_toggle_act	= 	sel_endp == SEL_ENDP2 ? data_toggle_act : 1'h0;
 	wire	[1:0]	ep2_data_toggle;
+	
+	// EP4: Transport Stream (from host, bulk)
+	wire	[8:0]	ep4_buf_in_addr		= 	sel_endp == SEL_ENDP4 ? buf_in_addr : 9'h0;
+	wire	[7:0]	ep4_buf_in_data		= 	sel_endp == SEL_ENDP4 ? buf_in_data : 8'h0;
+	wire			ep4_buf_in_wren		= 	sel_endp == SEL_ENDP4 ? buf_in_wren : 1'h0;
+	wire			ep4_buf_in_ready;
+	wire			ep4_buf_in_commit 	= 	sel_endp == SEL_ENDP4 ? buf_in_commit : 1'h0;
+	wire	[10:0]	ep4_buf_in_commit_len = sel_endp == SEL_ENDP4 ? buf_in_commit_len : 10'h0;
+	wire			ep4_buf_in_commit_ack;
+	wire			ep4_data_toggle_act	= 	sel_endp == SEL_ENDP4 ? data_toggle_act : 1'h0;
+	wire	[1:0]	ep4_data_toggle;
 
 	// EP3: Transport Stream
 	wire	[10:0]	ep3_buf_out_addr	= 	sel_endp == SEL_ENDP3 ? buf_out_addr : 9'h0;
@@ -146,36 +167,54 @@ output	wire			err_setup_pkt
 	wire			ep3_data_toggle_act	= 	sel_endp == SEL_ENDP3 ? data_toggle_act : 1'h0;
 	wire	[1:0]	ep3_data_toggle;
 	
+	// EP4: Transport Stream (from host, bulk)
+	/* wire	[10:0]	ep4_buf_out_addr	= 	sel_endp == SEL_ENDP4 ? buf_out_addr : 9'h0;
+	wire	[7:0]		ep4_buf_out_q;
+	wire	[10:0]	ep4_buf_out_len;	
+	wire			ep4_buf_out_hasdata;
+	wire			ep4_buf_out_arm		= 	sel_endp == SEL_ENDP4 ? buf_out_arm : 1'h0;
+	wire			ep4_buf_out_arm_ack;
+	wire			ep4_data_toggle_act	= 	sel_endp == SEL_ENDP4 ? data_toggle_act : 1'h0;
+	wire	[1:0]	ep4_data_toggle; */
+	
 	assign			buf_in_ready		= 	sel_endp == SEL_ENDP0 ? ep0_buf_in_ready : 
-											sel_endp == SEL_ENDP2 ? ep2_buf_in_ready : 1'h0;
+											sel_endp == SEL_ENDP2 ? ep2_buf_in_ready : 
+											sel_endp == SEL_ENDP4 ? ep4_buf_in_ready : 1'h0;
 											
 	assign			buf_in_commit_ack	= 	sel_endp == SEL_ENDP0 ? ep0_buf_in_commit_ack : 
-											sel_endp == SEL_ENDP2 ? ep2_buf_in_commit_ack : 1'h0;
+											sel_endp == SEL_ENDP2 ? ep2_buf_in_commit_ack : 
+											sel_endp == SEL_ENDP4 ? ep4_buf_in_commit_ack : 1'h0;
 
 	assign			buf_out_q			= 	sel_endp == SEL_ENDP0 ? ep0_buf_out_q :
 											sel_endp == SEL_ENDP1 ? ep1_buf_out_q : 
-											sel_endp == SEL_ENDP3 ? ep3_buf_out_q : 8'h0; // aospan
+											sel_endp == SEL_ENDP3 ? ep3_buf_out_q : 
+											sel_endp == SEL_ENDP4 ? ep4_buf_out_q : 8'h0; // aospan
 											
 	assign			buf_out_len			= 	sel_endp == SEL_ENDP0 ? ep0_buf_out_len : 
 											sel_endp == SEL_ENDP1 ? ep1_buf_out_len : 
-											sel_endp == SEL_ENDP3 ? ep3_buf_out_len : 10'h0;
+											sel_endp == SEL_ENDP3 ? ep3_buf_out_len : 
+											sel_endp == SEL_ENDP4 ? ep4_buf_out_len : 10'h0;
 											
 	assign			buf_out_hasdata		= 	sel_endp == SEL_ENDP0 ? ep0_buf_out_hasdata : 
 											sel_endp == SEL_ENDP1 ? ep1_buf_out_hasdata : 
-											sel_endp == SEL_ENDP3 ? ep3_buf_out_hasdata : 1'h0;
+											sel_endp == SEL_ENDP3 ? ep3_buf_out_hasdata : 
+											sel_endp == SEL_ENDP4 ? ep4_buf_out_hasdata : 1'h0;
 											
 	assign			buf_out_arm_ack		= 	sel_endp == SEL_ENDP0 ? ep0_buf_out_arm_ack : 
 											sel_endp == SEL_ENDP1 ? ep1_buf_out_arm_ack : 
-											sel_endp == SEL_ENDP3 ? ep3_buf_out_arm_ack : 1'h0;
+											sel_endp == SEL_ENDP3 ? ep3_buf_out_arm_ack : 
+											sel_endp == SEL_ENDP4 ? ep4_buf_out_arm_ack : 1'h0;
 											
 	assign			endp_mode			=	sel_endp == SEL_ENDP1 ? EP1_MODE : 
 											sel_endp == SEL_ENDP2 ? EP2_MODE : 
-											sel_endp == SEL_ENDP3 ? EP3_MODE : EP_MODE_CONTROL;
+											sel_endp == SEL_ENDP3 ? EP3_MODE : 
+											sel_endp == SEL_ENDP4 ? EP4_MODE : EP_MODE_CONTROL;
 											
 	assign			data_toggle			= 	sel_endp == SEL_ENDP0 ? ep0_data_toggle : 
 											sel_endp == SEL_ENDP1 ? ep1_data_toggle : 
 											sel_endp == SEL_ENDP2 ? ep2_data_toggle : 
-											sel_endp == SEL_ENDP3 ? ep3_data_toggle : 2'h0;
+											sel_endp == SEL_ENDP3 ? ep3_data_toggle : 
+											sel_endp == SEL_ENDP4 ? ep4_data_toggle : 2'h0;
 
 	reg		[5:0]	dc;
 	
@@ -353,6 +392,42 @@ usb2_ep iep3 (
 	
 	.data_toggle_act	( ep3_data_toggle_act ),
 	.data_toggle		( ep3_data_toggle )
+);
+
+////////////////////////////////////////////////////////////
+//
+// ENDPOINT 4 OUT
+// aospan: TS receive from host
+//
+////////////////////////////////////////////////////////////
+
+usb2_ep iep4 (
+	.phy_clk		( phy_clk ),
+	.rd_clk			( phy_clk ),
+	.wr_clk			( phy_clk ),
+	
+	.reset_n		( reset_n ),
+
+	.buf_in_addr		( ep4_buf_in_addr ),
+	.buf_in_data		( ep4_buf_in_data ),
+	.buf_in_wren		( ep4_buf_in_wren ),
+	.buf_in_ready		( ep4_buf_in_ready ),
+	.buf_in_commit		( ep4_buf_in_commit ),
+	.buf_in_commit_len 	( ep4_buf_in_commit_len ),
+	.buf_in_commit_ack 	( ep4_buf_in_commit_ack ),
+	
+	.buf_out_addr		( ep4_buf_out_addr ),
+	.buf_out_q			( ep4_buf_out_q ),
+	.buf_out_len		( ep4_buf_out_len ),
+	.buf_out_hasdata	( ep4_buf_out_hasdata ),
+	.buf_out_arm		( ep4_buf_out_arm ),
+	.buf_out_arm_ack	( ep4_buf_out_arm_ack ),
+	
+	.mode				( EP4_MODE ),
+	.fast_commit (1),
+	
+	.data_toggle_act	( ep4_data_toggle_act ),
+	.data_toggle		( ep4_data_toggle )
 );
 
 

@@ -48,7 +48,16 @@ input	wire	[10:0]	ep3_buf_in_commit_len,
 output	wire			ep3_buf_in_commit_ack,
 input	wire			ep3_ext_buf_out_arm,
 
+// EP4 OUT
+// TS from host, bulk
+input		wire	[8:0]	ep4_buf_out_addr,
+output	wire	[7:0]	ep4_buf_out_q,
+output	wire	[9:0]	ep4_buf_out_len,
+output	wire			ep4_buf_out_hasdata,
+input	wire				ep4_buf_out_arm,
+output	wire			ep4_buf_out_arm_ack,
 
+// EP2 OUT
 input	wire	[8:0]	buf_out_addr,
 output	wire	[7:0]	buf_out_q,
 output	wire	[9:0]	buf_out_len,
@@ -302,6 +311,14 @@ usb2_protocol ipr (
 	.ep3_ext_buf_in_commit_len	( ep3_buf_in_commit_len ),
 	.ep3_ext_buf_in_commit_ack	( ep3_buf_in_commit_ack ),
 	.ep3_ext_buf_out_arm			(ep3_ext_buf_out_arm),
+	
+	// EP4 TS from host, bulk
+	.ep4_buf_out_addr(ep4_buf_out_addr),
+	.ep4_buf_out_q(ep4_buf_out_q),
+	.ep4_buf_out_len(ep4_buf_out_len),
+	.ep4_buf_out_hasdata(ep4_buf_out_hasdata),
+	.ep4_buf_out_arm(ep4_buf_out_arm),
+	.ep4_buf_out_arm_ack(ep4_buf_out_arm_ack),
 	
 	.ext_buf_out_addr		( buf_out_addr ),
 	.ext_buf_out_q			( buf_out_q ),

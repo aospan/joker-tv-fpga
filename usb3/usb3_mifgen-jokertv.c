@@ -561,7 +561,7 @@ int main(int argc, char *argv[])
 	add_config_start(	0x300,		// USB spec number (auto fixed 2.10 for 2.0),
 						0x80,		// TODO attributes (self powered)
 						500,		// Power draw in mA
-						3			// Number of endpoints
+						4			// Number of endpoints
 					);
 
 	add_endpoint(		1,			// EP1
@@ -595,6 +595,16 @@ int main(int argc, char *argv[])
 						0x400,		// 1 x 1024 bytes
 						// 0x1000 | 0x200,		// 3 x 512 bytes
 						
+						0x1,		// Interval for isoch. endpoints
+						16,			// Max burst packets for usb 3.0
+						0x00,		// No stream support 
+						0			// 0bytes per interval (BULK)
+					);
+
+	add_endpoint(		4,			// EP4 for TS from host, bulk
+						0,			// OUT
+						2,			// BULK
+						512,		// Max packet size (autofixed to 1024 for USB3)
 						0x1,		// Interval for isoch. endpoints
 						16,			// Max burst packets for usb 3.0
 						0x00,		// No stream support 
