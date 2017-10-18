@@ -59,8 +59,12 @@ output	reg				err_crc_pkt,
 output	reg				err_pid_out_of_seq,
 
 output	reg		[10:0]	dbg_frame_num,
-output	wire	[2:0]	dbg_pkt_type
-
+output	wire	[2:0]	dbg_pkt_type,
+output	reg	[29:0]	pkt_total_bytes,
+output	reg	[29:0]	pkt_total_pkts,
+output	reg	[29:0]	pkt_count_crc_error,
+output	reg	[29:0]	pkt_count_ack,
+output	reg	[29:0]	pkt_count_nack
 );
 
 
@@ -227,10 +231,6 @@ always @(posedge phy_clk) begin
 	out_nxt_2 <= out_nxt_1;
 	{reset_2, reset_1} <= {reset_1, reset_n};
 	
-	
-	// probe[31] <= ~probe[31];
-	// probe[5:0] <= state;
-	
 	if(in_latch) begin
 		// delay incoming data by 2 bytes
 		// we don't know incoming packet size, only that the last two bytes are CRC
@@ -263,14 +263,13 @@ always @(posedge phy_clk) begin
 		keep_buf <= 0;
 		buf_in_commit <= 0;
 		buf_out_arm <= 0;
+		pkt_total_pkts <= 0;
+		pkt_total_bytes <= 0;
+		pkt_count_crc_error <= 0;
+		pkt_count_ack <= 0;
+		pkt_count_nack <= 0;
 		
 		state <= ST_RST_1;
-		
-		`ifdef MODEL_TECH
-		sel_endp <= 2'b11; /* EP3 */
-		`endif
-		// probe <= 0;
-		
 	end
 	ST_RST_1: begin
 		// housekeeping goes here
@@ -286,8 +285,6 @@ always @(posedge phy_clk) begin
 			if(in_latch) begin
 				// check validity of PID
 				if(pid_valid) begin
-				
-					// probe[30] <= ~probe[30];
 					// save it for later
 					pid_stored <= pid;
 					pid_last <= pid_stored;
@@ -390,8 +387,11 @@ always @(posedge phy_clk) begin
 					buf_in_commit_len <= 0;
 				end else if(pid_last == PID_TOKEN_OUT || pid_last == PID_TOKEN_SETUP) begin
 					state <= ST_DATA_CRC;
-					buf_in_commit <= 1;
+					// do not commit received buffer here.
+					// it may be NAKed in ST_DATA_CRC
 					buf_in_commit_len <= bc-10'h2;
+					pkt_total_bytes <= pkt_total_bytes + bc-10'h2;
+					pkt_total_pkts <= pkt_total_pkts + 1;
 					buflen <= bc-10'h2;
 				end
 			end
@@ -402,8 +402,6 @@ always @(posedge phy_clk) begin
 		// default is to wait for EOP
 		state <= ST_WAIT_EOP;
 		
-		// probe[29] <= ~probe[29];
-
 		// next default is confirm token CRC5
 		if(packet_token_crc5 != next_crc5) begin
 			err_crc_tok <= 1;
@@ -413,13 +411,11 @@ always @(posedge phy_clk) begin
 		case(pid_stored)
 		PID_TOKEN_SOF: begin
 			dbg_frame_num <= packet_token_frame;
-			// probe[28] <= ~probe[28];
 		end
 		endcase
 		
 		// only parse tokens at our address
 		if(packet_token_addr == local_dev_addr) begin
-			// probe[27] <= ~probe[27];
 			case(pid_stored)
 			PID_TOKEN_IN: begin
 				// switch protocol layer to proper endpoint
@@ -472,7 +468,6 @@ always @(posedge phy_clk) begin
 		if(~in_act) state <= ST_IDLE;
 	end
 	
-	
 	ST_DATA_CRC: begin
 		// check CRC16
 		if(packet_crc == crc16_fix) begin
@@ -480,12 +475,21 @@ always @(posedge phy_clk) begin
 			// send ACK
 			pid_send <= buf_in_ready_latch ? PID_HAND_ACK : PID_HAND_NAK;
 			bc <= 0;
+			if (buf_in_ready_latch) begin
+				// commmit buffer only if we ACK data
+				// otherwise we will get duplicated traffic
+				buf_in_commit <= 1;
+				pkt_count_ack <= pkt_count_ack + 1;
+			end else begin
+				pkt_count_nack <= pkt_count_nack + 1;	
+			end
 			// don't ACK isochronous transfers
 			state <= (endp_mode == EP_MODE_ISOCH) ? ST_WAIT_EOP : ST_OUT_0;
 		end else begin
 			// invalid CRC, wait for packet to end (it probably did)
 			err_crc_pkt <= 1;
 			state <= ST_WAIT_EOP;
+			pkt_count_crc_error<= pkt_count_crc_error + 1; 
 		end
 	end
 	
@@ -498,7 +502,6 @@ always @(posedge phy_clk) begin
 	ST_OUT_PRE_1: begin
 		// wait for protocol FSM/endpoint FSM to be ready (usually already is)
 		if(buf_out_hasdata) begin
-			// probe[26] <= ~probe[26];
 			// good to go
 			bc <= buf_out_len + 11'h2;
 			// note: needs more work to allow
