@@ -188,7 +188,7 @@ always @(posedge clk) begin
 		processed <= 0;
 		ms <= 0;
 		ms_cnt <= 0;
-		ci_result <= 8'h2; // 2 - OK, 1 - ERROR, 3 - TIMEOUT
+		ci_result <= 8'h2; // 2 - OK, 1 - ERROR, 3 - TIMEOUT, 4 - WE bit detected 
 	end
 	
 	ST_CI_IDLE:

@@ -162,6 +162,31 @@ set_location_assignment PIN_C1 -to pFLASH_MOSI
 set_global_assignment -name ENABLE_SIGNALTAP OFF
 set_global_assignment -name USE_SIGNALTAP_FILE joker_tv.stp
 set_location_assignment PIN_P8 -to ci_iord_n
+set_location_assignment PIN_D16 -to CI_MCLKI
+set_location_assignment PIN_K15 -to CI_MISTRT
+set_location_assignment PIN_F16 -to CI_MIVAL
+set_location_assignment PIN_K16 -to CI_MDI[0]
+set_location_assignment PIN_G16 -to CI_MDI[3]
+set_location_assignment PIN_G15 -to CI_MDI[4]
+set_location_assignment PIN_F15 -to CI_MDI[5]
+set_location_assignment PIN_C16 -to CI_MDI[7]
+set_location_assignment PIN_D15 -to CI_MDI[6]
+set_location_assignment PIN_J15 -to CI_MDI[1]
+set_location_assignment PIN_J16 -to CI_MDI[2]
+set_location_assignment PIN_L15 -to CI_MDO[7]
+set_location_assignment PIN_N15 -to CI_MDO[5]
+set_location_assignment PIN_N16 -to CI_MDO[6]
+set_location_assignment PIN_P16 -to CI_MDO[4]
+set_location_assignment PIN_B10 -to CI_MDO[2]
+set_location_assignment PIN_B11 -to CI_MDO[0]
+set_location_assignment PIN_A11 -to CI_MDO[1]
+set_location_assignment PIN_P15 -to CI_MDO[3]
+set_location_assignment PIN_B9 -to CI_MCLKO
+set_location_assignment PIN_A12 -to CI_MOSTRT
+set_location_assignment PIN_B12 -to CI_MOVAL
+set_global_assignment -name CYCLONEII_RESERVE_NCEO_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_global_assignment -name VERILOG_FILE ../joker_control/joker_control_ts.v
+set_global_assignment -name VERILOG_FILE ../ts/ts_ci.v
 set_global_assignment -name VERILOG_FILE ../joker_control/joker_ci.v
 set_global_assignment -name VERILOG_FILE ../joker_control/joker_spi.v
 set_global_assignment -name VERILOG_FILE ../spi/rtl/verilog/timescale.v
@@ -224,4 +249,5 @@ set_global_assignment -name VERILOG_FILE ../opencores_i2c/i2c_master_byte_ctrl.v
 set_global_assignment -name VERILOG_FILE ../opencores_i2c/opencores_i2c.v
 set_global_assignment -name VERILOG_FILE ../opencores_i2c/i2c_master_top.v
 set_global_assignment -name SIGNALTAP_FILE joker_tv.stp
+set_global_assignment -name QIP_FILE ../ts/ts_ci_fifo.qip
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

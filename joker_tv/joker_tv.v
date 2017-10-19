@@ -56,6 +56,18 @@ output	wire	ci_d_en,
 output	wire	ci_reg_n,
 output	wire	ci_ce_n,
 
+/* CI ts bus pins */
+output	wire	[7:0]	CI_MDI,
+output	wire	CI_MCLKI,
+output	wire	CI_MISTRT,
+output	wire	CI_MIVAL,
+
+input		wire	[7:0]	CI_MDO,
+input		wire	CI_MCLKO,
+input		wire	CI_MOSTRT,
+input		wire	CI_MOVAL,
+
+
 /* LEDs 
 	LED[0] - green CI
 	LED[1] - red CI
@@ -90,14 +102,6 @@ input		wire	sony_data,
 input		wire	sony_valid,
 input		wire	sony_start,
 
-/* output   wire  atbm,
-output   wire  lg,
-output   wire  sony_tuner,
-output   wire  sony_tuner_i2c_en,
-output   wire  sony_demod,
-output   wire  tps_reset_n,
-output   wire  tps_ci_reset_n, */
-
 /* overcurrent */
 input    wire  tps_overcurrent_n,
 input		wire	ci_overcurrent_n,
@@ -106,35 +110,8 @@ input		wire	ci_overcurrent_n,
 inout    wire           io_scl,
 inout    wire           io_sda,
 
-
-// USB: PIPE
-output   wire           usb_pipe_tx_clk,
-output   wire  [15:0]   usb_pipe_tx_data,
-output   wire  [ 1:0]   usb_pipe_tx_datak,
-input    wire           usb_pipe_pclk,
-input    wire  [15:0]   usb_pipe_rx_data,
-input    wire  [ 1:0]   usb_pipe_rx_datak,
-input    wire           usb_pipe_rx_valid,
-
 // USB: Control and Status
 output   wire           usb_phy_reset_n,
-output   wire           usb_tx_detrx_lpbk,
-output   wire           usb_tx_elecidle,
-inout    wire           usb_rx_elecidle,
-input    wire  [ 2:0]   usb_rx_status,
-output   wire  [ 1:0]   usb_power_down,
-inout    wire           usb_phy_status,
-input    wire           usb_pwrpresent,
-
-// USB: Configuration
-output   wire           usb_tx_oneszeros,
-output   wire  [ 1:0]   usb_tx_deemph,
-output   wire  [ 2:0]   usb_tx_margin,
-output   wire           usb_tx_swing,
-output   wire           usb_rx_polarity,
-output   wire           usb_rx_termination,
-output   wire           usb_rate,
-output   wire           usb_elas_buf_mode,
 
 // USB: ULPI
 input    wire           usb_ulpi_clk,
@@ -142,11 +119,7 @@ inout    wire  [ 7:0]   usb_ulpi_d,
 input    wire           usb_ulpi_dir,
 output   wire           usb_ulpi_stp,
 input    wire           usb_ulpi_nxt,
-input    wire           usb_id,
-
-// USB: Reset and Output Control Interface
-output   wire           usb_reset_n,
-output   wire           usb_out_enable
+input    wire           usb_id
 );
 
 
@@ -159,6 +132,14 @@ joker_control joker_control_inst (
 	.FLASH_MOSI(pFLASH_MOSI),
 	.FLASH_MISO(pFLASH_MISO),
 	.FLASH_nCS(pFLASH_nCS),
+	
+	/* EP4 OUT. TS from host, bulk */
+   .ep4_buf_out_hasdata(ep4_buf_out_hasdata), 
+	.ep4_buf_out_len(ep4_buf_out_len), 
+	.ep4_buf_out_q(ep4_buf_out_q),
+	.ep4_buf_out_addr(ep4_buf_out_addr),
+	.ep4_buf_out_arm_ack(ep4_buf_out_arm_ack),
+	.ep4_buf_out_arm(ep4_buf_out_arm),
 	
 	/* EP2 OUT */
    .buf_out_hasdata(buf_out_hasdata), 
@@ -201,12 +182,19 @@ joker_control joker_control_inst (
 	.ci_reg_n(ci_reg_n),
 	.ci_ce_n(ci_ce_n),
 	
+	/* TS traffic from USB bulk transfers */
+	.ts_usb_data(ts_usb_data),
+	.ts_usb_writereq(ts_usb_writereq),
+	.ts_usb_almost_full(ts_usb_almost_full),
+
 	/* staff that we care about */
 	.reset_ctrl(reset_ctrl),
 	.insel(insel),
 	.isoc_commit_len(isoc_commit_len),
 	.cam0_ready(cam0_ready),
-	.cam0_fail(cam0_fail)
+	.cam0_fail(cam0_fail),
+	.ts_ci_enable(ts_ci_enable),
+	.fifo_aclr(fifo_aclr)
 );
 
 
@@ -229,6 +217,14 @@ wire 	[10:0] buf_out_addr; /* input */
 wire buf_out_arm;
 wire buf_out_arm_ack;
 
+/* aospan usb EP4 OUT */
+wire 			ep4_buf_out_hasdata;
+wire  [7:0] ep4_buf_out_q;
+wire  [9:0] ep4_buf_out_len;
+wire 	[10:0] ep4_buf_out_addr; /* input */
+wire ep4_buf_out_arm;
+wire ep4_buf_out_arm_ack;
+
 reg [7:0] dc;
 reg [7:0] dc_rd = 8'h00;
 reg [7:0] dc_rd_wrap = 8'h00;
@@ -238,7 +234,7 @@ reg [1:0] det_ack;
 wire acked;
 assign acked = (det_ack == 2'b10);
 reg [7:0] wr_cnt = 8'b00000000;
-wire [1:0] insel;
+wire [2:0] insel;
 wire [10:0] isoc_commit_len;
 wire	[7:0] reset_ctrl;
 	
@@ -254,9 +250,24 @@ assign   FE_DVB_nRST = (suspend) ? 0 : ~reset_ctrl[0]; /* Sony demod */
  
 /* always force USB unreset */
 assign usb_phy_reset_n = 1;
- 
+
+/* CI related staff */
+wire	[7:0]	ts_ci_in_d;
+wire	ts_ci_wrreq;
+wire	ts_ci_almost_full;
+wire	[7:0]	ts_ci_out_d;
+wire	ts_ci_out_wrreq;
+wire	ts_ci_out_almost_full;
+wire	[7:0]	ts_usb_data;
+wire	ts_usb_writereq;
+wire	ts_usb_almost_full;
+wire	ts_ci_enable;
+wire	fifo_aclr;
+
 ts_proxy ts_proxy_inst (
-	.clk( usb_ulpi_clk /* clk_50 */),
+	.clk( usb_ulpi_clk ),
+	.reset(reset),
+	
 	.atsc_clock(lg_clk),
 	.atsc_start(lg_start),
 	.atsc_valid(lg_valid),
@@ -279,14 +290,49 @@ ts_proxy ts_proxy_inst (
 	.ep3_ext_buf_out_arm(ep3_ext_buf_out_arm),
 	.commit_len(isoc_commit_len),
 	.insel(insel),
-	//.pkts_cnt(probe[15:0]),
-	//.tslost(probe[23:16]),
-	// .acked(probe[15:8]),
-	// .missed(probe[23:16]),
-	// .state(probe[27:24]),
-	//.fifo_clean(probe[31:28]),
-	.reset(reset)
+	
+	/* CI traffic _to_ CAM (IN direction) */
+	.ts_ci_in_d(ts_ci_in_d),
+	.ts_ci_wrreq(ts_ci_wrreq),
+	.ts_ci_almost_full(ts_ci_almost_full),
+	
+	/* CI traffic _from_ CAM (OUT direction) */
+	.ts_ci_out_d(ts_ci_out_d),
+	.ts_ci_out_wrreq(ts_ci_out_wrreq),
+	.ts_ci_out_almost_full(ts_ci_out_almost_full),	
+	
+	/* TS traffic from USB bulk transfers */
+	.ts_usb_data(ts_usb_data),
+	.ts_usb_writereq(ts_usb_writereq),
+	.ts_usb_almost_full(ts_usb_almost_full),
+	
+	.ts_ci_enable(ts_ci_enable),
+	.fifo_aclr(fifo_aclr)
 );
+
+ts_ci ts_ci_inst (
+	.clk( usb_ulpi_clk ),
+	.reset(reset),
+
+	.CI_MDI(CI_MDI),
+	.CI_MCLKI(CI_MCLKI),
+	.CI_MISTRT(CI_MISTRT),
+	.CI_MIVAL(CI_MIVAL),
+
+	.CI_MDO(CI_MDO),
+	.CI_MCLKO(CI_MCLKO),
+	.CI_MOSTRT(CI_MOSTRT),
+	.CI_MOVAL(CI_MOVAL),
+	
+	.ts_ci_in_d(ts_ci_in_d),
+	.ts_ci_wrreq(ts_ci_wrreq),
+	.ts_ci_almost_full(ts_ci_almost_full),
+	
+	.ts_ci_out_d(ts_ci_out_d),
+	.ts_ci_out_wrreq(ts_ci_out_wrreq),
+	.ts_ci_out_almost_full(ts_ci_out_almost_full)
+);
+
 
 
 aospan_pll  apll (
@@ -294,44 +340,8 @@ aospan_pll  apll (
    .c0               (clk_50)
 );
 
-
-reg [31:0] source;
-reg [511:0] probe;
-
-/*
-`ifndef MODEL_TECH
-probe	probe_inst(
-	.probe( probe ),
-	.source(source)
-);
-`endif
-*/
-
 reg      reset;
 
-assign   usb_pipe_tx_clk      = 1'b0;
-assign   usb_pipe_tx_data     = 16'h0000;
-assign   usb_pipe_tx_datak    = 2'b00;
-// assign   usb_phy_reset_n      = 1'b1;
-assign   usb_tx_detrx_lpbk    = 1'b0;
-assign   usb_tx_elecidle      = 1'b1;
-assign   usb_rx_elecidle      = usb_strapping ? 1'bZ : 1'b0;
-assign   usb_power_down       = 2'b00;
-assign   usb_phy_status       = usb_strapping ? 1'bZ : 1'b0;
-assign   usb_tx_oneszeros     = 1'b0;
-assign   usb_tx_deemph        = 2'b10;
-assign   usb_tx_margin[2:1]   = 2'b00;
-assign   usb_tx_margin[0]     = usb_strapping ? 1'b0 : 1'b1;
-assign   usb_tx_swing         = 1'b0;
-assign   usb_rx_polarity      = 1'b0;
-assign   usb_rx_termination   = 1'b0;
-assign   usb_rate             = 1'b1;
-assign   usb_elas_buf_mode    = 1'b0;
-assign   usb_reset_n          = reset_n;
-assign   usb_out_enable       = 1'b1;
-wire     usb_strapping;
-wire     usb_connected;
-wire     usb_configured;
 
 /* USB PHY strapping control (ordinarily handled by USB 3.0 block) */
 /* TODO: This is probably not necessary for USB0 and USB1, as the
@@ -393,8 +403,6 @@ always @(posedge usb_ulpi_clk) begin
 end
 
 
-
-
 ////////////////////////////////////////////////////////////
 //
 // USB 2.0 controller
@@ -402,8 +410,8 @@ end
 ////////////////////////////////////////////////////////////
 
 usb2_top iu2 (
-   .ext_clk          ( /* usb_ulpi_clk */ clk_50 ),
-   .reset_n          ( usb_reset_n ),
+   .ext_clk          ( clk_50 ),
+   .reset_n          ( reset_n ),
    .reset_n_out      (  ),
 	
 	.suspend				( suspend ),
@@ -440,7 +448,7 @@ usb2_top iu2 (
    .ep3_buf_in_commit_ack   ( ep3_usb_in_commit_ack ),
 	.ep3_ext_buf_out_arm			(ep3_ext_buf_out_arm),
    
-   /* aospan */
+   /* aospan EP2 OUT */
    .buf_out_hasdata     ( buf_out_hasdata ),
    .buf_out_q           ( buf_out_q ),
    .buf_out_len         ( buf_out_len ),
@@ -448,6 +456,13 @@ usb2_top iu2 (
    .buf_out_arm         ( buf_out_arm ),
    .buf_out_arm_ack     ( buf_out_arm_ack ),
    
+   /* aospan EP4 OUT */
+   .ep4_buf_out_hasdata     ( ep4_buf_out_hasdata ),
+   .ep4_buf_out_q           ( ep4_buf_out_q ),
+   .ep4_buf_out_len         ( ep4_buf_out_len ),
+   .ep4_buf_out_addr        ( ep4_buf_out_addr ),
+   .ep4_buf_out_arm         ( ep4_buf_out_arm ),
+   .ep4_buf_out_arm_ack     ( ep4_buf_out_arm_ack ),	
 
    .dbg_linestate    (  ),
    .dbg_frame_num    (  )

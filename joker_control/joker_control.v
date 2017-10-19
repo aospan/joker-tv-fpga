@@ -20,6 +20,14 @@ module joker_control
 	input			wire	FLASH_MISO,
 	output		wire	FLASH_nCS,	
 	
+	/* EP4 OUT, TS from host, bulk  */
+   input    wire  ep4_buf_out_hasdata, 
+	input		wire	[9:0] ep4_buf_out_len, 
+	input		wire	[7:0] ep4_buf_out_q,
+	output	wire	[10:0] ep4_buf_out_addr,
+	input		wire	ep4_buf_out_arm_ack,
+	output	reg	ep4_buf_out_arm,	
+	
 	/* EP2 OUT */
    input    wire  buf_out_hasdata, 
 	input		wire	[9:0] buf_out_len, 
@@ -61,12 +69,20 @@ module joker_control
 	output	wire	ci_reg_n,
 	output	wire	ci_ce_n,
 	
+	/* TS traffic from USB bulk transfers */
+	output	wire	[7:0]	ts_usb_data,
+	output	wire	ts_usb_writereq,
+	input		wire	ts_usb_almost_full,
+	
 	/* staff that we care about */
 	output	reg	[7:0]	reset_ctrl,
 	output	reg	[7:0]	insel,
 	output	reg	[10:0] isoc_commit_len,
 	output	wire	cam0_ready,
-	output	wire	cam0_fail
+	output	wire	cam0_fail,
+	output	reg	ts_ci_enable,
+	
+	output		reg	fifo_aclr
 );
 
 reg	[7:0]	j_cmd;
@@ -207,9 +223,41 @@ joker_ci joker_ci_inst(
 	.ci_ce_n(ci_ce_n)	
 );
 
+// TS part
+wire	ts_ack;
+wire	[10:0]	usb_in_commit_len_ts;
+wire	[10:0]	buf_out_addr_ts;
+wire	[10:0]	usb_in_addr_ts;
+wire	usb_in_wren_ts;
+wire	[7:0]	usb_in_data_ts;
+
+
+joker_control_ts joker_control_ts_inst(
+	.clk(clk),
+	.reset(reset),
+	.j_cmd(j_cmd),
+	.ack_o(ts_ack),
+
+	.usb_in_addr(usb_in_addr_ts),
+	.usb_in_wren(usb_in_wren_ts),
+	.usb_in_commit_len(usb_in_commit_len_ts),
+	.usb_in_data(usb_in_data_ts),
+	.ts_usb_data(ts_usb_data),
+	.ts_usb_writereq(ts_usb_writereq),
+	.ts_usb_almost_full(ts_usb_almost_full),
+	
+	/* EP4 OUT. TS from host, bulk */
+   .ep4_buf_out_hasdata(ep4_buf_out_hasdata), 
+	.ep4_buf_out_len(ep4_buf_out_len), 
+	.ep4_buf_out_q(ep4_buf_out_q),
+	.ep4_buf_out_addr(ep4_buf_out_addr),
+	.ep4_buf_out_arm_ack(ep4_buf_out_arm_ack),
+	.ep4_buf_out_arm(ep4_buf_out_arm)
+);
+
 /* mux usb EP's between submodules */
 assign	buf_out_addr_o = (j_cmd == J_CMD_SPI) ? buf_out_addr_spi : 
-								(j_cmd == J_CMD_CI_RW) ? buf_out_addr_ci : buf_out_addr;
+								(j_cmd == J_CMD_CI_RW) ? buf_out_addr_ci :  buf_out_addr;
 assign	usb_in_addr_o = (j_cmd == J_CMD_SPI) ? usb_in_addr_spi :
 								(j_cmd == J_CMD_CI_RW) ? usb_in_addr_ci : usb_in_addr;
 assign	usb_in_wren_o = (j_cmd == J_CMD_SPI) ? usb_in_wren_spi : 
@@ -273,6 +321,8 @@ begin
 		reset_ctrl <= 8'hBF; /* unreset CI power by default */ 
 		insel <= 0;
 		isoc_commit_len <= 11'd512;
+		ts_ci_enable <= 0;
+		fifo_aclr <= 0;
    end
    
    ST_IDLE:
@@ -546,8 +596,65 @@ begin
 			end
 			default:	j_state <= J_ST_DEFAULT;
 			endcase
-		end				
+		end			
+		
+		/********** J_CMD_CLEAR_TS_FIFO **********/
+		J_CMD_CLEAR_TS_FIFO:
+		begin
+			case(j_state)
+			J_ST_1:
+			begin
+				// clear FIFO
+				fifo_aclr <= 1;
+				j_state <= J_ST_2;
+				cnt <= 0;
+			end
+			J_ST_2:
+			begin
+				if (cnt > 2) begin
+					fifo_aclr <= 0;
+					c_state <= ST_CMD_DONE; /* wait next cmd */
+				end
+			end
+			J_ST_DEFAULT: 
+			begin
+				begin
+					cnt <= 0;
+					j_state <= J_ST_1;
+				end
+			end
+			default:	j_state <= J_ST_DEFAULT;
+			endcase
+		end		
+		
 
+		/********** J_CMD_CI_TS **********/
+		J_CMD_CI_TS:
+		begin
+			case(j_state)
+			J_ST_1:
+			begin
+				if (cnt > 2)
+				begin
+					if(buf_out_q[0])
+						ts_ci_enable <= 1;
+					else
+						ts_ci_enable <= 0;
+					c_state <= ST_CMD_DONE; /* wait next cmd */
+				end
+			end
+			J_ST_DEFAULT: 
+			begin
+				begin
+					buf_out_addr <= 1; /* addr */
+					cnt <= 0;
+					j_state <= J_ST_1;
+				end
+			end
+			default:	j_state <= J_ST_DEFAULT;
+			endcase
+		end		
+		
 		/********** J_CMD_CI_RW **********/
 		J_CMD_CI_RW:
 		begin
@@ -577,8 +684,8 @@ begin
 			end
 			default:	j_state <= J_ST_DEFAULT;
 			endcase
-		end		
-		
+		end	
+
 		/********** J_CMD_SPI **********/
 		J_CMD_SPI:
 		begin
