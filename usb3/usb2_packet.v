@@ -68,7 +68,7 @@ output	reg	[29:0]	pkt_count_nack
 );
 
 
-
+	reg	buf_in_commit_ack_prev;
 	// edge detection / synch
 	reg 			reset_1, reset_2;
 	reg				in_act_1;
@@ -197,7 +197,8 @@ usb2_crc16 ic16 (
 					ST_OUT_0			= 6'd40,
 					ST_OUT_1			= 6'd41,
 					ST_OUT_2			= 6'd42,
-					ST_OUT_3			= 6'd43;
+					ST_OUT_3			= 6'd43,
+					ST_IN_WAIT_ACK	= 6'd44;
 		
 
 	// two byte delay for incoming data
@@ -230,13 +231,14 @@ always @(posedge phy_clk) begin
 	out_nxt_1 <= out_nxt;
 	out_nxt_2 <= out_nxt_1;
 	{reset_2, reset_1} <= {reset_1, reset_n};
+	buf_in_commit_ack_prev <= buf_in_commit_ack;
 	
 	if(in_latch) begin
 		// delay incoming data by 2 bytes
 		// we don't know incoming packet size, only that the last two bytes are CRC
 		{buf_in_addr_1, buf_in_addr_0} <= {buf_in_addr_2, buf_in_addr_1};
 		{buf_in_data_1, buf_in_data_0} <= {in_byte, buf_in_data_1};
-		{buf_in_wren_1, buf_in_wren_0} <= {in_latch && (bc < /* 1024 */ 512) && buf_in_ready_latch && 
+		{buf_in_wren_1, buf_in_wren_0} <= {in_latch && (bc < 512) && buf_in_ready_latch && 
 											(packet_token_addr_stored == dev_addr), buf_in_wren_1};
 	end
 	
@@ -268,6 +270,7 @@ always @(posedge phy_clk) begin
 		pkt_count_crc_error <= 0;
 		pkt_count_ack <= 0;
 		pkt_count_nack <= 0;
+		buf_in_commit_ack_prev <= 0;
 		
 		state <= ST_RST_1;
 	end
@@ -386,7 +389,19 @@ always @(posedge phy_clk) begin
 					buf_in_commit <= 1;
 					buf_in_commit_len <= 0;
 				end else if(pid_last == PID_TOKEN_OUT || pid_last == PID_TOKEN_SETUP) begin
-					state <= ST_DATA_CRC;
+					// commmit buffer only if we going to ACK data
+					// otherwise we will get duplicated traffic
+					if (buf_in_ready_latch) begin
+						buf_in_commit <= 1;
+						if (pid_last == PID_TOKEN_OUT)
+							// this will help us to detect "NYET condition" (see below)
+							state <= ST_IN_WAIT_ACK;
+						else 
+							state <= ST_DATA_CRC;
+					end else begin
+						state <= ST_DATA_CRC;
+					end
+					
 					// do not commit received buffer here.
 					// it may be NAKed in ST_DATA_CRC
 					buf_in_commit_len <= bc-10'h2;
@@ -396,6 +411,13 @@ always @(posedge phy_clk) begin
 				end
 			end
 		end
+	end
+	
+	ST_IN_WAIT_ACK:
+	begin
+		// ack received
+		if (buf_in_commit_ack_prev && ~buf_in_commit_ack)
+			state <= ST_DATA_CRC;
 	end
 	
 	ST_IN_TOK: begin
@@ -472,17 +494,23 @@ always @(posedge phy_clk) begin
 		// check CRC16
 		if(packet_crc == crc16_fix) begin
 			// good, process etc
-			// send ACK
-			pid_send <= buf_in_ready_latch ? PID_HAND_ACK : PID_HAND_NAK;
-			bc <= 0;
+			// send ACK/NAK/NYET
+			if (pid_last == PID_TOKEN_OUT) begin
+				// if endpoint not ready after commit then mostly probable that 
+				// next OUT transaction from host will be NAKed. So, send NYET (not yet ready for further data).
+				// This will cause host to send just PING (not new data) and save bandwidth on the bus
+				pid_send = buf_in_ready ? PID_HAND_ACK : PID_HAND_NYET;
+			end else begin 
+				pid_send <= buf_in_ready_latch ? PID_HAND_ACK : PID_HAND_NAK;
+			end
+		
+			// update counters
 			if (buf_in_ready_latch) begin
-				// commmit buffer only if we ACK data
-				// otherwise we will get duplicated traffic
-				buf_in_commit <= 1;
 				pkt_count_ack <= pkt_count_ack + 1;
 			end else begin
 				pkt_count_nack <= pkt_count_nack + 1;	
 			end
+			bc <= 0;
 			// don't ACK isochronous transfers
 			state <= (endp_mode == EP_MODE_ISOCH) ? ST_WAIT_EOP : ST_OUT_0;
 		end else begin
@@ -506,14 +534,11 @@ always @(posedge phy_clk) begin
 			bc <= buf_out_len + 11'h2;
 			// note: needs more work to allow
 			// multipart transfers not exactly 512 bytes
-			//bytes_tosend <= buf_out_len;
-			//bytes_sent <= 0;
 			state <= ST_OUT_0;
 		end else begin
 			// wait a bit (about 16.6 * 31 ns)
 			if(dc == 31) begin
 				// not ready, NAK
-				//if(bytes_sent != bytes_tosend) begin
 				if (endp_mode == EP_MODE_ISOCH)
 				begin
 					// send zero length isoc packet 
