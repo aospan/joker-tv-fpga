@@ -300,6 +300,7 @@ always @(posedge clk) begin
 		// start timer
 		ms_cnt <= 0;
 		ms <= 0;
+		cam_readdata_store <= 0;
 		ci_state <= ST_CI_WAITFOR;
 		ci_next_state_waitfor <= ST_CI_IO_SET_HC;
 	end
@@ -326,6 +327,7 @@ always @(posedge clk) begin
 		// start timer
 		ms_cnt <= 0;
 		ms <= 0;
+		cam_readdata_store <= 0;
 		ci_state <= ST_CI_WAITFOR;
 		ci_next_state_waitfor <= ST_CI_IO_WRITE_SIZE_HIGH;
 	end
@@ -376,20 +378,28 @@ always @(posedge clk) begin
 			// all data processed
 			ci_len <= ci_size;
 			ci_result <= 2; // 2 - OK, 1 - ERROR
+			ms_cnt <= 0;
+			ms <= 0;
 			ci_state <= ST_CI_READ_STATUS;	
 			ci_next_state_status <= ST_CI_IO_CHECK_WE;
 		end		
 	end
 	ST_CI_IO_CHECK_WE:
 	begin
-		if (cam_readdata_store[1] /* WE bit */) begin
-			ci_result <= 4; // 2 - OK, 1 - ERROR, 4 - WE bit detected
+		if (cam_readdata_store[1] /* WriteError bit signalled */) begin
+			if (ms > 100) begin
+				ci_result <= 4; // 2 - OK, 1 - ERROR, 4 - WE bit detected
+				ci_state <= ST_CI_WRITE_RESULT;
+			end else begin
+				ci_state <= ST_CI_READ_STATUS;
+				ci_next_state_status <= ST_CI_IO_CHECK_WE;
+			end
 		end else begin
 			ci_len <= ci_size;		
 			ci_result <= 2; // 2 - OK, 1 - ERROR
+			ci_state <= ST_CI_WRITE_RESULT;
 		end
-		ci_state <= ST_CI_WRITE_RESULT;	
-	end
+	end	
 	
 	/****** this is 'sub-function' to wait specific bit in status reg ******/
 	ST_CI_WAITFOR:
