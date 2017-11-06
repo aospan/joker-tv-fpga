@@ -31,7 +31,7 @@ module ts_ci (
 	input	wire		ts_ci_out_almost_full,
 
 	/* CI bus pins */
-	output	reg	[7:0]	CI_MDI,
+	output	wire	[7:0]	CI_MDI,
 	output	reg	CI_MCLKI,
 	output	reg	CI_MISTRT,
 	output	reg	CI_MIVAL,
@@ -73,6 +73,8 @@ reg	[7:0]	ci_data;
 reg	[15:0] sync_cnt;
 reg	in_sync;
 
+assign	CI_MDI = fifo_q;
+
 always @(posedge clk ) begin
 	ts_dc <= ts_dc + 1;
 	clk_cnt <= clk_cnt + 1;
@@ -85,26 +87,22 @@ always @(posedge clk ) begin
 		/* input clock 60 MHZ (16.6ns cycle)
 		* ci (parallel) clock 9Mhz (111ns cycle)
 		* div is ~ 7 */
-		if (clk_cnt >= 3) begin
+		if (clk_cnt == 3) begin
 			clk_cnt <= 0;
 			CI_MCLKI <= ~CI_MCLKI;
-		end
-		
-		/* no more data in fifo */
-		if (ts_ci_rdempty && ~CI_MCLKI && clk_cnt == 2 /* hold data on bus after fall edge */) begin
-			CI_MIVAL <= 0;
-			CI_MISTRT <= 0;
-		end
-		
-		/* set next byte to bus if available */
-		if (~ts_ci_rdempty && ~CI_MCLKI && clk_cnt == 1) begin
-			fifo_rdreq <= 1;
-			ts_ci_state <= ST_TS_CI_WRITE_CI;
+			if (CI_MCLKI) begin
+				if (ts_ci_rdempty) begin
+					CI_MIVAL <= 0;
+					CI_MISTRT <= 0;
+				end else begin
+					fifo_rdreq <= 1;
+					ts_ci_state <= ST_TS_CI_WRITE_CI;
+				end
+			end
 		end
 	end
 	ST_TS_CI_WRITE_CI:
 	begin
-		CI_MDI <= fifo_q;
 		if (fifo_q == 8'h47 && sync_cnt >= 8'hBB) begin
 			// all is ok, we are in sync
 			CI_MISTRT <= 1;
@@ -143,7 +141,6 @@ always @(posedge clk ) begin
 		sync_cnt <= 0;
 		in_sync <= 0;
 		ts_dc	<= 5'h00;
-		CI_MDI <= 8'h0;
 		CI_MIVAL <= 0;
 		CI_MISTRT <= 0;
 		CI_MCLKI <= 0;

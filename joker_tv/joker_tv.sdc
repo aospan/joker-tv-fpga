@@ -54,6 +54,8 @@ create_clock -name {SONY_CLOCK} -period "135 MHz" [get_ports {sony_clk}]
 # ULPI 
 create_clock -name {usb_ulpi_clk} -period "60 MHz" [get_ports {usb_ulpi_clk}]
 
+# CAM module out traffic
+create_clock -name {CI_MCLKO} -period "10 MHz" [get_ports {CI_MCLKO}]
 
 # PIPE
 
