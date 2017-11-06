@@ -185,6 +185,11 @@ set_location_assignment PIN_B9 -to CI_MCLKO
 set_location_assignment PIN_A12 -to CI_MOSTRT
 set_location_assignment PIN_B12 -to CI_MOVAL
 set_global_assignment -name CYCLONEII_RESERVE_NCEO_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR OFF -to CI_MCLKO
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR OFF -to CI_MOVAL
+set_global_assignment -name STRATIXIII_UPDATE_MODE REMOTE
+set_global_assignment -name VERILOG_FILE joker_remote_update/synthesis/joker_remote_update.v
+set_global_assignment -name QSYS_FILE joker_remote_update.qsys
 set_global_assignment -name VERILOG_FILE ../joker_control/joker_control_ts.v
 set_global_assignment -name VERILOG_FILE ../ts/ts_ci.v
 set_global_assignment -name VERILOG_FILE ../joker_control/joker_ci.v

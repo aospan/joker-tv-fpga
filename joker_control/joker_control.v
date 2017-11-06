@@ -85,6 +85,23 @@ module joker_control
 	output		reg	fifo_aclr
 );
 
+// remote update
+wire	busy;
+reg	reconfig;
+wire [28:0] data_out;
+reg [2:0]  param;
+reg	read_param;
+
+joker_remote_update joker_remote_update_inst (
+	.clock(clk),
+	.reset(reset),
+	.busy(busy),
+	.reconfig(reconfig),
+	.data_out(data_out),
+	.param(param),
+	.read_param(read_param)
+);
+
 reg	[7:0]	j_cmd;
 `include "joker_control.vh"
 
@@ -323,6 +340,7 @@ begin
 		isoc_commit_len <= 11'd512;
 		ts_ci_enable <= 0;
 		fifo_aclr <= 0;
+		reconfig <= 0;
    end
    
    ST_IDLE:
@@ -626,6 +644,26 @@ begin
 			default:	j_state <= J_ST_DEFAULT;
 			endcase
 		end		
+		
+		/********** J_CMD_REBOOT **********/
+		J_CMD_REBOOT:
+		begin
+			case(j_state)
+			J_ST_1:
+			begin
+				reconfig <= 1;
+				c_state <= ST_CMD_DONE; /* wait next cmd */
+			end
+			J_ST_DEFAULT: 
+			begin
+				begin
+					cnt <= 0;
+					j_state <= J_ST_1;
+				end
+			end
+			default:	j_state <= J_ST_DEFAULT;
+			endcase
+		end
 		
 
 		/********** J_CMD_CI_TS **********/
