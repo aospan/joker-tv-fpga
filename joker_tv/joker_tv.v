@@ -366,9 +366,9 @@ assign   usb1_strapping = usb1_phy_ready_q3;
 wire     reset_n;
 assign   reset_n = ~reset;
 
-reg   [ 7:0]   count_clk_in_us;
-reg            pulse_1us;
-reg   [31:0]   count_us;
+reg   [ 7:0]   count_clk_in_us /* synthesis noprune */;
+reg            pulse_1us /* synthesis noprune */;
+reg   [31:0]   count_us /* synthesis noprune */;
 
 parameter count_board_reset = 500000;   // about 10msec
 
