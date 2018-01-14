@@ -132,6 +132,8 @@ joker_control joker_control_inst (
 	.FLASH_MOSI(pFLASH_MOSI),
 	.FLASH_MISO(pFLASH_MISO),
 	.FLASH_nCS(pFLASH_nCS),
+		
+	.ep3_buf_out_clear(ep3_buf_out_clear),
 	
 	/* EP4 OUT. TS from host, bulk */
    .ep4_buf_out_hasdata(ep4_buf_out_hasdata), 
@@ -447,6 +449,7 @@ usb2_top iu2 (
    .ep3_buf_in_commit_len   ( ep3_usb_in_commit_len ),
    .ep3_buf_in_commit_ack   ( ep3_usb_in_commit_ack ),
 	.ep3_ext_buf_out_arm			(ep3_ext_buf_out_arm),
+	.ep3_buf_out_clear		(ep3_buf_out_clear),
    
    /* aospan EP2 OUT */
    .buf_out_hasdata     ( buf_out_hasdata ),
@@ -493,6 +496,7 @@ wire              ep3_usb_in_commit;
 wire     [ 10:0]   ep3_usb_in_commit_len;
 wire              ep3_usb_in_commit_ack;
 wire					ep3_ext_buf_out_arm;
+wire					ep3_buf_out_clear;
 
 wire     [ 8:0]   usb_in_addr;
 wire     [ 7:0]   usb_in_data;

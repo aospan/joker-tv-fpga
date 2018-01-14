@@ -57,6 +57,7 @@ output   wire  [1:0] dbg_linestate
 ////////////////////////////////////////////////////////////////////
 
    reg            reset_1, reset_2;
+	reg		[15:0]	reset_waittime;
    reg            reset_ulpi;
    assign         reset_local = reset_n & reset_ulpi;
    reg            opt_enable_hs_1, opt_enable_hs_2;
@@ -105,23 +106,15 @@ output   wire  [1:0] dbg_linestate
                TX_CMD_REGRD_IMM  = 3'b011,
                TX_CMD_REGRD_EXT  = 3'b111;
    
-   // mux local ULPI control with packet layer
-   assign   pkt_out_latch  = pkt_out_act & phy_dir & phy_nxt;
-   assign   pkt_out_byte   = pkt_out_latch ? phy_d_in : 8'h0;
-   assign   pkt_out_act    = (rx_active | know_recv_packet) & phy_dir;
-   
-   assign   pkt_in_cts     = ~phy_dir & can_send;
-   assign   pkt_in_nxt     = phy_nxt && (state == ST_PKT_1 || state == ST_PKT_2);
-   
-   reg            pkt_in_latch_defer;
-   
    reg            can_send;
    reg      [3:0] can_send_delay;
    reg             [3:0] chirp_k_seen;
    reg             [3:0] chirp_j_seen;
-		  
    reg      [6:0] state;
    reg      [6:0] state_next;
+
+  
+   reg            pkt_in_latch_defer;
    parameter [6:0]   ST_RST_0       = 7'd0,
                ST_RST_1       = 7'd1,
                ST_RST_2       = 7'd2,
@@ -149,6 +142,14 @@ output   wire  [1:0] dbg_linestate
                ST_SUSPEND_ACT3         = 7'd60,
 	       ST_CHIRP_WAIT_KJKJKJ        = 7'd61;
 					
+   // mux local ULPI control with packet layer
+   assign   pkt_out_latch  = pkt_out_act & phy_dir & phy_nxt;
+   assign   pkt_out_byte   = pkt_out_latch ? phy_d_in : 8'h0;
+   assign   pkt_out_act    = (rx_active | know_recv_packet) & phy_dir;
+   
+   assign   pkt_in_cts     = ~phy_dir & can_send;
+   assign   pkt_in_nxt     = phy_nxt && (state == ST_PKT_1 || state == ST_PKT_2);
+ 
    reg      [7:0] dc;
    reg      [11:0]   dc_wrap;
    
@@ -316,6 +317,8 @@ always @(posedge phy_clk) begin
       pkt_in_latch_defer <= 0;
       chirp_k_seen <= 0;
       chirp_j_seen <= 0;
+		reset_waittime <= 2000; /* 10 ms */
+		phy_d_sel <= 0; /* ulpi driving data lines */
 		
       // stay stuck in reset, if disable is specified
       if(opt_disable_all) 
@@ -338,7 +341,7 @@ always @(posedge phy_clk) begin
       };
       // wait 10ms for debounce on prior disconnect
       if(dc == 255) dc_wrap <= dc_wrap + 1'b1;
-      if(~phy_dir & dc_wrap == 2000) begin
+      if(~phy_dir & dc_wrap == reset_waittime) begin
          state <= ST_TXCMD_0; 
          state_next <= ST_RST_2;
       end

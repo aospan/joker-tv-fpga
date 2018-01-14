@@ -31,20 +31,23 @@ output	wire	[10:0]	buf_out_len,
 output	wire			buf_out_hasdata,
 input	wire			buf_out_arm,
 output	wire			buf_out_arm_ack,
+input		wire		buf_out_clear,
 
 input	wire	[1:0]	mode,
 
 input	wire			fast_commit, /* no wait extra cycles in commit */
 
 input	wire			data_toggle_act,
-output	reg		[1:0]	data_toggle
-
+output	reg		[1:0]	data_toggle,
+input	wire		sof_arrived
 );
 
 	// synchronizers
 	reg 			reset_1, reset_2;
 	reg				buf_in_commit_1, buf_in_commit_2, buf_in_commit_3;
 	reg				buf_out_arm_1, buf_out_arm_2, buf_out_arm_3;
+	reg		sof_arrived_1;
+	reg	buf_out_clear_1;
 
 	reg		[3:0]	dc;
 	reg		[5:0]	state_in;
@@ -97,14 +100,35 @@ always @(posedge phy_clk) begin
 		{buf_in_commit_2, buf_in_commit_1, buf_in_commit};
 	{buf_out_arm_3, buf_out_arm_2, buf_out_arm_1} <= 
 		{buf_out_arm_2, buf_out_arm_1, buf_out_arm};
+	sof_arrived_1 <= sof_arrived;
+	buf_out_clear_1 <= buf_out_clear;
 	
 	dc <= dc + 1'b1;
+	
+	// every microframe should start from DATA_2, DATA_1 or DATA_0
+	// DATA_2 and DATA_1 should be filled to maximum declared size (1024)
+	// otherwise host will rise error
+	// DATA_0 can be filled to any size
+	// see xHCI spec Table B-2
+	if (sof_arrived != sof_arrived_1 && mode == EP_MODE_ISOCH) begin
+		if (hasdata_out_a && hasdata_out_b)
+			data_toggle <= DATA_TOGGLE_2;
+		else if (hasdata_out_a || hasdata_out_b)
+			data_toggle <= DATA_TOGGLE_1;
+		else
+			data_toggle <= DATA_TOGGLE_0;
+
+	end
 		
 	if(data_toggle_act) begin
-		data_toggle <= data_toggle + 1'b1;
-		// modify for non-bulk endpoints
-		// bulk transfers only utilize DATA0 and DATA1
-		if(data_toggle == DATA_TOGGLE_1) data_toggle <= DATA_TOGGLE_0;
+		if (mode == EP_MODE_ISOCH) begin
+			if(data_toggle > DATA_TOGGLE_0)
+				data_toggle <= data_toggle - 1'b1;
+		end else begin
+			data_toggle <= data_toggle + 1'b1;
+			// bulk transfers only utilize DATA0 and DATA1
+			if(data_toggle == DATA_TOGGLE_1) data_toggle <= DATA_TOGGLE_0;
+		end
 	end
 	
 	// input FSM
@@ -113,7 +137,10 @@ always @(posedge phy_clk) begin
 	ST_RST_0: begin
 		// reset buffer index
 		ptr_in <= 0;
-		data_toggle <= DATA_TOGGLE_0;
+		if (mode == EP_MODE_ISOCH)
+			data_toggle <= DATA_TOGGLE_0;
+		else
+			data_toggle <= DATA_TOGGLE_0;
 		
 		ready_in_a <= 1;
 		ready_in_b <= 1;
@@ -194,6 +221,15 @@ always @(posedge phy_clk) begin
 			// free up this endpoint
 			dc <= 0;
 			state_out <= ST_OUT_ARM;
+		end else if (buf_out_clear && ~buf_out_clear_1)
+		begin
+			// clean all collected data
+			ready_in_a <= 1;
+			ready_in_b <= 1;
+			hasdata_out_a <= 0;
+			hasdata_out_b <= 0;
+			ptr_out <= 0;
+			ptr_in <= 0;
 		end
 	end
 	ST_OUT_ARM: begin

@@ -18,7 +18,10 @@ module joker_control
 	output		wire	FLASH_SCLK,
 	output		wire	FLASH_MOSI,
 	input			wire	FLASH_MISO,
-	output		wire	FLASH_nCS,	
+	output		wire	FLASH_nCS,
+
+	/* EP3 IN, TS to host, isoc */
+	output	reg	ep3_buf_out_clear,
 	
 	/* EP4 OUT, TS from host, bulk  */
    input    wire  ep4_buf_out_hasdata, 
@@ -323,6 +326,7 @@ begin
 		usb_in_addr <= 0;
 		usb_in_data <= 0;
 		usb_in_commit_len <= 0;
+		ep3_buf_out_clear <= 0;
 		/* '1' - mean in reset state
 		 * '0' - mean in unreset state
 		 * bit:
@@ -624,6 +628,8 @@ begin
 			begin
 				// clear FIFO
 				fifo_aclr <= 1;
+				// clear collected TS data from EP3 buffers
+				ep3_buf_out_clear <= 1;
 				j_state <= J_ST_2;
 				cnt <= 0;
 			end
@@ -631,6 +637,7 @@ begin
 			begin
 				if (cnt > 2) begin
 					fifo_aclr <= 0;
+					ep3_buf_out_clear <= 0;
 					c_state <= ST_CMD_DONE; /* wait next cmd */
 				end
 			end

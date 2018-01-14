@@ -49,7 +49,7 @@ create_clock -name {ATSC_CLOCK} -period "60 MHz" [get_ports {lg_clk}]
 create_clock -name {DTMB_CLOCK} -period "60 MHz" [get_ports {TS_ATBM8881_CLK}]
 
 # SONY
-create_clock -name {SONY_CLOCK} -period "135 MHz" [get_ports {sony_clk}]
+create_clock -name {SONY_CLOCK} -period "180 MHz" [get_ports {sony_clk}]
 
 # ULPI 
 create_clock -name {usb_ulpi_clk} -period "60 MHz" [get_ports {usb_ulpi_clk}]

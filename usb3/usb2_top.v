@@ -47,6 +47,7 @@ input	wire			ep3_buf_in_commit,
 input	wire	[10:0]	ep3_buf_in_commit_len,
 output	wire			ep3_buf_in_commit_ack,
 input	wire			ep3_ext_buf_out_arm,
+input	wire			ep3_buf_out_clear,
 
 // EP4 OUT
 // TS from host, bulk
@@ -190,6 +191,7 @@ usb2_ulpi 	ia (
 	wire	[1:0]	prot_endp_mode;
 	wire			prot_data_toggle_act;
 	wire	[1:0]	prot_data_toggle;
+	wire	sof_arrived;
 	
 
 ////////////////////////////////////////////////////////////
@@ -245,6 +247,7 @@ usb2_packet ip (
 	
 	.data_toggle_act	( prot_data_toggle_act ),
 	.data_toggle		( prot_data_toggle ),
+	.sof_arrived		( sof_arrived ),
 	
 	// current device address, driven by endpoint 0
 	.dev_addr			( prot_dev_addr ),
@@ -311,6 +314,7 @@ usb2_protocol ipr (
 	.ep3_ext_buf_in_commit_len	( ep3_buf_in_commit_len ),
 	.ep3_ext_buf_in_commit_ack	( ep3_buf_in_commit_ack ),
 	.ep3_ext_buf_out_arm			(ep3_ext_buf_out_arm),
+	.ep3_buf_out_clear			(ep3_buf_out_clear),
 	
 	// EP4 TS from host, bulk
 	.ep4_buf_out_addr(ep4_buf_out_addr),
@@ -335,6 +339,7 @@ usb2_protocol ipr (
 	
 	.data_toggle_act	( prot_data_toggle_act ),
 	.data_toggle		( prot_data_toggle ),
+	.sof_arrived		( sof_arrived ),
 	
 	.err_setup_pkt		( err_setup_pkt ),
 	

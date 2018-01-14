@@ -592,8 +592,9 @@ int main(int argc, char *argv[])
 						// for ISOC:
 						// bits 12..11 Number of transactions per microframe
 						// 0x200,		// 1 x 512 bytes
-						0x400,		// 1 x 1024 bytes
-						// 0x1000 | 0x200,		// 3 x 512 bytes
+						// 0x400,		// 1 x 1024 bytes
+						// 0x800 | 0x400,		// 2 x 1024 bytes
+						0x1000 | 0x400,		// 3 x 1024 bytes
 						
 						0x1,		// Interval for isoch. endpoints
 						16,			// Max burst packets for usb 3.0

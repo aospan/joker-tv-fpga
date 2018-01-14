@@ -63,6 +63,7 @@ output	wire	[9:0]	ep3_ext_buf_out_len,
 output	wire			ep3_ext_buf_out_hasdata,
 input	wire			ep3_ext_buf_out_arm,
 output	wire			ep3_ext_buf_out_arm_ack,
+input		wire		ep3_buf_out_clear,
 
 // EXTERNAL EP4 (Transport Stream from host. Bulk)
 input	wire	[8:0]	ep4_buf_out_addr,
@@ -84,7 +85,8 @@ output	wire	[15:0]	vend_req_val,
 output	wire	[6:0]	dev_addr,
 output	wire			configured,
 
-output	wire			err_setup_pkt
+output	wire			err_setup_pkt,
+input		wire	sof_arrived
 
 );
 
@@ -386,12 +388,14 @@ usb2_ep iep3 (
 	.buf_out_hasdata	( ep3_buf_out_hasdata ),
 	.buf_out_arm		( ep3_buf_out_arm ),
 	.buf_out_arm_ack	( ep3_buf_out_arm_ack ),
+	.buf_out_clear		(ep3_buf_out_clear),
 	
 	.mode				( EP3_MODE ),
 	.fast_commit (1),
 	
 	.data_toggle_act	( ep3_data_toggle_act ),
-	.data_toggle		( ep3_data_toggle )
+	.data_toggle		( ep3_data_toggle ),
+	.sof_arrived		(sof_arrived)
 );
 
 ////////////////////////////////////////////////////////////

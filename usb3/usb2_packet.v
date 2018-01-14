@@ -1,4 +1,3 @@
-
 //
 // usb 2.0 packet handler
 //
@@ -64,7 +63,12 @@ output	reg	[29:0]	pkt_total_bytes,
 output	reg	[29:0]	pkt_total_pkts,
 output	reg	[29:0]	pkt_count_crc_error,
 output	reg	[29:0]	pkt_count_ack,
-output	reg	[29:0]	pkt_count_nack
+output	reg	[29:0]	pkt_count_nack,
+output	reg flag_sof,
+output	reg flag_in,
+output	reg	[7:0] in_count,
+output	reg	[31:0] in_count_total,
+output	reg	sof_arrived
 );
 
 
@@ -217,8 +221,6 @@ usb2_crc16 ic16 (
 	wire	[7:0]	out_crc_mux = 	out_byte_crc[0] ? crc16_fix_out[15:8] : crc16_fix_out[7:0];
 	assign			out_byte	= 	out_byte_crc[1] ? out_crc_mux :
 									out_byte_buf ? buf_out_q : out_byte_out;
-	//reg		[9:0]	bytes_tosend /* synthesis noprune */;
-	//reg		[9:0]	bytes_sent /* synthesis noprune */;
 			
 	assign dbg_pkt_type = pkt_type;
 	
@@ -271,6 +273,12 @@ always @(posedge phy_clk) begin
 		pkt_count_ack <= 0;
 		pkt_count_nack <= 0;
 		buf_in_commit_ack_prev <= 0;
+		flag_sof <= 0;
+		flag_in <= 0;
+		in_count <= 0;
+		in_count_total <= 0;
+		sof_arrived <= 0;
+		out_byte_crc <= 2'b00;
 		
 		state <= ST_RST_1;
 	end
@@ -291,9 +299,7 @@ always @(posedge phy_clk) begin
 					// save it for later
 					pid_stored <= pid;
 					pid_last <= pid_stored;
-					
-
-					
+				
 					case(pid) 
 					PID_TOKEN_OUT, 	
 					PID_TOKEN_IN, 
@@ -322,6 +328,10 @@ always @(posedge phy_clk) begin
 					buf_in_addr_2 <= 0;
 					state <= ST_IN_1;
 					buf_in_ready_latch <= buf_in_ready;
+					
+					if (pid_stored == PID_TOKEN_SOF) begin
+						sof_arrived <= ~sof_arrived;
+					end
 				end else begin
 					// sit out the rest of the packet, flag error
 					err_crc_pid <= 1;
@@ -368,13 +378,11 @@ always @(posedge phy_clk) begin
 			
 			// data toggle
 			if(packet_token_addr_stored == local_dev_addr) begin
-				if(pid_stored == PID_HAND_ACK) begin
+				if(pid_stored == PID_HAND_ACK && endp_mode != EP_MODE_ISOCH) begin
 					// yay
 					data_toggle_act <= 1;
 					// tell endpoints transfer succeeded
 					if(pid_last == PID_TOKEN_IN) begin
-						//bytes_tosend <= 0;
-						//bytes_sent <= 0;
 						buf_out_arm <= 1;
 					end
 				end
@@ -406,7 +414,6 @@ always @(posedge phy_clk) begin
 					// it may be NAKed in ST_DATA_CRC
 					buf_in_commit_len <= bc-10'h2;
 					pkt_total_bytes <= pkt_total_bytes + bc-10'h2;
-					pkt_total_pkts <= pkt_total_pkts + 1;
 					buflen <= bc-10'h2;
 				end
 			end
@@ -421,6 +428,17 @@ always @(posedge phy_clk) begin
 	end
 	
 	ST_IN_TOK: begin
+		if (pid_stored == PID_TOKEN_SOF) begin
+						flag_sof <= ~flag_sof;
+						in_count <= 0;
+		end
+					
+		if (pid_stored == PID_TOKEN_IN) begin
+						flag_in <= ~flag_in;
+						in_count <= in_count + 1;
+						in_count_total <= in_count_total + 1;
+		end
+	
 		// default is to wait for EOP
 		state <= ST_WAIT_EOP;
 		
@@ -530,6 +548,8 @@ always @(posedge phy_clk) begin
 	ST_OUT_PRE_1: begin
 		// wait for protocol FSM/endpoint FSM to be ready (usually already is)
 		if(buf_out_hasdata) begin
+			if (endp_mode == EP_MODE_ISOCH)
+				pkt_total_pkts <= pkt_total_pkts + 1;
 			// good to go
 			bc <= buf_out_len + 11'h2;
 			// note: needs more work to allow
@@ -537,8 +557,8 @@ always @(posedge phy_clk) begin
 			state <= ST_OUT_0;
 		end else begin
 			// wait a bit (about 16.6 * 31 ns)
-			if(dc == 31) begin
-				// not ready, NAK
+			if(dc == 31 || endp_mode == EP_MODE_ISOCH) begin
+				// not ready
 				if (endp_mode == EP_MODE_ISOCH)
 				begin
 					// send zero length isoc packet 
@@ -588,7 +608,6 @@ always @(posedge phy_clk) begin
 					// but with isochronous there will never be an ACK.
 					// re-arm the buffer right after completion.
 					data_toggle_act <= 1;
-					buf_out_arm <= 1;
 				end
 				state <= ST_WAIT_EOP;
 			end
@@ -609,13 +628,16 @@ always @(posedge phy_clk) begin
 					// a correspending ACK is received from the host,
 					// but with isochronous there will never be an ACK.
 					// re-arm the buffer right after completion.
-					// data_toggle_act <= 1; // aospan: no need for isoc (see usb 2.0 standard)
+					// aospan: need for high-bandwidth isoc (see xHCI spec Table B-2)
+					data_toggle_act <= 1;
 					// we sending zero length isoc packet if keep_buf == 1,
 					// so we don't  need to clean buffer
-					if (keep_buf == 1)
+					if (keep_buf == 1) begin
 						keep_buf <= 0;
-					else
+					end else begin
+						
 						buf_out_arm <= 1;
+					end
 				end
 			end else begin
 				// switch mux to bram

@@ -90,7 +90,7 @@ module tsfifo (
 		scfifo_component.almost_full_value = 32760,
 		scfifo_component.intended_device_family = "Cyclone IV E",
 		scfifo_component.lpm_numwords = 32768,
-		scfifo_component.lpm_showahead = "OFF",
+		scfifo_component.lpm_showahead = "ON",
 		scfifo_component.lpm_type = "scfifo",
 		scfifo_component.lpm_width = 8,
 		scfifo_component.lpm_widthu = 15,
@@ -108,14 +108,14 @@ endmodule
 // Retrieval info: PRIVATE: AlmostEmptyThr NUMERIC "-1"
 // Retrieval info: PRIVATE: AlmostFull NUMERIC "1"
 // Retrieval info: PRIVATE: AlmostFullThr NUMERIC "32760"
-// Retrieval info: PRIVATE: CLOCKS_ARE_SYNCHRONIZED NUMERIC "0"
+// Retrieval info: PRIVATE: CLOCKS_ARE_SYNCHRONIZED NUMERIC "1"
 // Retrieval info: PRIVATE: Clock NUMERIC "0"
 // Retrieval info: PRIVATE: Depth NUMERIC "32768"
 // Retrieval info: PRIVATE: Empty NUMERIC "1"
 // Retrieval info: PRIVATE: Full NUMERIC "1"
 // Retrieval info: PRIVATE: INTENDED_DEVICE_FAMILY STRING "Cyclone IV E"
 // Retrieval info: PRIVATE: LE_BasedFIFO NUMERIC "0"
-// Retrieval info: PRIVATE: LegacyRREQ NUMERIC "1"
+// Retrieval info: PRIVATE: LegacyRREQ NUMERIC "0"
 // Retrieval info: PRIVATE: MAX_DEPTH_BY_9 NUMERIC "0"
 // Retrieval info: PRIVATE: OVERFLOW_CHECKING NUMERIC "0"
 // Retrieval info: PRIVATE: Optimize NUMERIC "0"
@@ -141,7 +141,7 @@ endmodule
 // Retrieval info: CONSTANT: ALMOST_FULL_VALUE NUMERIC "32760"
 // Retrieval info: CONSTANT: INTENDED_DEVICE_FAMILY STRING "Cyclone IV E"
 // Retrieval info: CONSTANT: LPM_NUMWORDS NUMERIC "32768"
-// Retrieval info: CONSTANT: LPM_SHOWAHEAD STRING "OFF"
+// Retrieval info: CONSTANT: LPM_SHOWAHEAD STRING "ON"
 // Retrieval info: CONSTANT: LPM_TYPE STRING "scfifo"
 // Retrieval info: CONSTANT: LPM_WIDTH NUMERIC "8"
 // Retrieval info: CONSTANT: LPM_WIDTHU NUMERIC "15"
