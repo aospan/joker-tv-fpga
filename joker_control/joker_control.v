@@ -768,6 +768,7 @@ begin
 	end
 	ST_CMD_DONE:
 	begin
+		j_state <= 0;
 		j_cmd <= 0;
 		// tell EP2 OUT that we don't need this data anymore
 		buf_out_arm <= 1;
