@@ -223,6 +223,7 @@ usb2_crc16 ic16 (
 									out_byte_buf ? buf_out_q : out_byte_out;
 			
 	assign dbg_pkt_type = pkt_type;
+	reg our_packet /* synthesis noprune */;
 	
 	reg [8:0] buflen;
 	reg keep_buf;
@@ -279,6 +280,7 @@ always @(posedge phy_clk) begin
 		in_count_total <= 0;
 		sof_arrived <= 0;
 		out_byte_crc <= 2'b00;
+		our_packet <= 0;
 		
 		state <= ST_RST_1;
 	end
@@ -289,8 +291,8 @@ always @(posedge phy_clk) begin
 	
 	
 	ST_IDLE: begin
+		our_packet <= 0;
 		// idle state
-
 		if(in_act) begin
 			// wait for valid bytes
 			if(in_latch) begin
@@ -456,6 +458,7 @@ always @(posedge phy_clk) begin
 		
 		// only parse tokens at our address
 		if(packet_token_addr == local_dev_addr) begin
+			our_packet <= 1;
 			case(pid_stored)
 			PID_TOKEN_IN: begin
 				// switch protocol layer to proper endpoint
@@ -556,23 +559,20 @@ always @(posedge phy_clk) begin
 			// multipart transfers not exactly 512 bytes
 			state <= ST_OUT_0;
 		end else begin
-			// wait a bit (about 16.6 * 31 ns)
-			if(dc == 31 || endp_mode == EP_MODE_ISOCH) begin
-				// not ready
-				if (endp_mode == EP_MODE_ISOCH)
-				begin
-					// send zero length isoc packet 
-					// if we don't have any data in  buffer
-					// otherwise we will get error transfer on host side
-					// see: https://github.com/philemonf/libusb/pull/1
-					bc <= 11'h2;
-					keep_buf <= 1;
-				end else begin
-					pid_send <= PID_HAND_NAK;
-					bc <= 0;
-				end
-				state <= ST_OUT_0;
+			// not ready
+			if (endp_mode == EP_MODE_ISOCH)
+			begin
+				// send zero length isoc packet 
+				// if we don't have any data in  buffer
+				// otherwise we will get error transfer on host side
+				// see: https://github.com/philemonf/libusb/pull/1
+				bc <= 11'h2;
+				keep_buf <= 1;
+			end else begin
+				pid_send <= PID_HAND_NAK;
+				bc <= 11'h2;
 			end
+			state <= ST_OUT_0;
 		end
 	end
 	ST_OUT_0: begin
