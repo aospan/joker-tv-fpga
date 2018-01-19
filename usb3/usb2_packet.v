@@ -570,7 +570,7 @@ always @(posedge phy_clk) begin
 				keep_buf <= 1;
 			end else begin
 				pid_send <= PID_HAND_NAK;
-				bc <= 11'h2;
+				bc <= 11'h0;
 			end
 			state <= ST_OUT_0;
 		end
