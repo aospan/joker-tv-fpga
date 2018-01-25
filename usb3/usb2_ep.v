@@ -39,6 +39,7 @@ input	wire			fast_commit, /* no wait extra cycles in commit */
 
 input	wire			data_toggle_act,
 output	reg		[1:0]	data_toggle,
+input  wire    setconfig,
 input	wire		sof_arrived
 );
 
@@ -48,6 +49,7 @@ input	wire		sof_arrived
 	reg				buf_out_arm_1, buf_out_arm_2, buf_out_arm_3;
 	reg		sof_arrived_1;
 	reg	buf_out_clear_1;
+	reg	setconfig_1;
 
 	reg		[3:0]	dc;
 	reg		[5:0]	state_in;
@@ -102,9 +104,14 @@ always @(posedge phy_clk) begin
 		{buf_out_arm_2, buf_out_arm_1, buf_out_arm};
 	sof_arrived_1 <= sof_arrived;
 	buf_out_clear_1 <= buf_out_clear;
+	setconfig_1 <= setconfig;
 	
 	dc <= dc + 1'b1;
 	
+	// reset toggle counter (actual for BULK enpoint EP1 IN only)
+	if (setconfig != setconfig_1)
+		data_toggle <= DATA_TOGGLE_0;
+
 	// every microframe should start from DATA_2, DATA_1 or DATA_0
 	// DATA_2 and DATA_1 should be filled to maximum declared size (1024)
 	// otherwise host will rise error
@@ -117,7 +124,6 @@ always @(posedge phy_clk) begin
 			data_toggle <= DATA_TOGGLE_1;
 		else
 			data_toggle <= DATA_TOGGLE_0;
-
 	end
 		
 	if(data_toggle_act) begin

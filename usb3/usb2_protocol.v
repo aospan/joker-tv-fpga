@@ -219,6 +219,7 @@ input		wire	sof_arrived
 											sel_endp == SEL_ENDP4 ? ep4_data_toggle : 2'h0;
 
 	reg		[5:0]	dc;
+	wire	setconfig;
 	
 	reg		[5:0]	state;
 	parameter [5:0]	ST_RST_0			= 6'd0,
@@ -288,6 +289,7 @@ usb2_ep0 iep0 (
 	
 	.dev_addr		( dev_addr ),
 	.configured		( configured ),
+	.setconfig     (setconfig),
 	
 	.err_setup_pkt	( err_setup_pkt )
 );
@@ -323,6 +325,7 @@ usb2_ep iep1 (
 	
 	.mode				( EP1_MODE ),
 	
+	.setconfig        ( setconfig ),
 	.data_toggle_act	( ep1_data_toggle_act ),
 	.data_toggle		( ep1_data_toggle )
 );

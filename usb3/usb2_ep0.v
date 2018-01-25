@@ -43,6 +43,7 @@ output	reg		[1:0]	data_toggle,
 
 output	reg		[6:0]	dev_addr,
 output	reg				configured,
+output 	reg    setconfig,
 
 output	reg				err_setup_pkt
 
@@ -201,6 +202,7 @@ always @(posedge phy_clk) begin
 		ready_in <= 1;
 		
 		state_in <= ST_RST_1;
+		setconfig <= 0;
 		
 		// flag <= 0;
 	end
@@ -395,6 +397,8 @@ always @(posedge phy_clk) begin
 	ST_REQ_SETCONFIG: begin
 		// SET DEVICE CONFIGURATION
 		dev_config <= packet_setup_wval[6:0];
+		
+		setconfig <= ~setconfig;
 	
 		// send 0byte response (DATA1)
 		len_out <= 0;
