@@ -78,11 +78,11 @@ output	reg				err_setup_pkt
 					PID_SPEC_LPM	= 4'hF;
 	
 	reg		[79:0]	packet_setup;
-	wire	[7:0]	packet_setup_reqtype = packet_setup[79:72];	
-	wire			packet_setup_dir	= packet_setup_reqtype[7];
+	wire	[7:0]	packet_setup_reqtype = packet_setup[79:72] /* synthesis noprune */;	
+	wire			packet_setup_dir	= packet_setup_reqtype[7] /* synthesis noprune */;
 	parameter		SETUP_DIR_HOSTTODEV	= 1'b0,
 					SETUP_DIR_DEVTOHOST	= 1'b1;
-	wire	[1:0]	packet_setup_type	= packet_setup_reqtype[6:5];
+	wire	[1:0]	packet_setup_type	= packet_setup_reqtype[6:5] /* synthesis noprune */;
 	parameter [1:0]	SETUP_TYPE_STANDARD	= 2'h0,
 					SETUP_TYPE_CLASS	= 2'h1,
 					SETUP_TYPE_VENDOR	= 2'h2,
@@ -92,7 +92,7 @@ output	reg				err_setup_pkt
 					SETUP_RECPT_IFACE	= 5'h1,
 					SETUP_RECPT_ENDP	= 5'h2,
 					SETUP_RECPT_OTHER	= 5'h3;
-	wire	[7:0]	packet_setup_req	= packet_setup[71:64];
+	wire	[7:0]	packet_setup_req	= packet_setup[71:64] /* synthesis noprune */;
 	parameter [7:0]	REQ_GET_STATUS		= 8'h0,
 					REQ_CLEAR_FEAT		= 8'h1,
 					REQ_SET_FEAT		= 8'h3,
@@ -104,9 +104,9 @@ output	reg				err_setup_pkt
 					REQ_SET_INTERFACE	= 8'hB,
 					REQ_SYNCH_FRAME		= 8'h12,
 					REQ_GET_MS_COMPAT		= 8'h77;
-	wire	[15:0]	packet_setup_wval	= {packet_setup[55:48], packet_setup[63:56]};
-	wire	[15:0]	packet_setup_widx	= {packet_setup[39:32], packet_setup[47:40]};
-	wire	[15:0]	packet_setup_wlen	= {packet_setup[23:16], packet_setup[31:24]};
+	wire	[15:0]	packet_setup_wval	= {packet_setup[55:48], packet_setup[63:56]} /* synthesis noprune */;
+	wire	[15:0]	packet_setup_widx	= {packet_setup[39:32], packet_setup[47:40]} /* synthesis noprune */;
+	wire	[15:0]	packet_setup_wlen	= {packet_setup[23:16], packet_setup[31:24]} /* synthesis noprune */;
 	wire	[15:0]	packet_setup_crc16	= packet_setup[15:0];
 	
 	parameter [5:0]	ST_OUT_ARM			= 6'd11,
