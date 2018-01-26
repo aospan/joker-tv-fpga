@@ -108,9 +108,13 @@ always @(posedge phy_clk) begin
 	
 	dc <= dc + 1'b1;
 	
-	// reset toggle counter (actual for BULK enpoint EP1 IN only)
-	if (setconfig != setconfig_1)
-		data_toggle <= DATA_TOGGLE_0;
+	// Do not reset toggle counter (actual for BULK enpoint EP1 IN only)
+	// as observed only Orange Pi zero (dwc_otg) do the same reset on host side
+	// when setconfig performed
+	// solution: do not call setconfig on host side
+	//	(may be changed later when more info to come)
+	//if (setconfig != setconfig_1 && mode == EP_MODE_BULK)
+	//	data_toggle <= DATA_TOGGLE_0;
 
 	// every microframe should start from DATA_2, DATA_1 or DATA_0
 	// DATA_2 and DATA_1 should be filled to maximum declared size (1024)
