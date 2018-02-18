@@ -72,6 +72,7 @@ module ts_proxy_tb ();
 		// .commit_len(11'd8), // isoc packet size
 		.insel(3'b010), // ATSC
 		// .insel(3'b101), // TSGEN mode 2
+		// .insel(3'b011), // TSGEN mode 1
 		.reset(reset)
 	);
 
@@ -149,10 +150,11 @@ module ts_proxy_tb ();
 	always
 		#10 clk = ~clk; // every ten nanoseconds invert
 
-	always
-		#2.7 atsc_clock = ~atsc_clock; // 2.7ns => 180 MHz
+	always begin
+		#16 atsc_clock = ~atsc_clock; 
+		// #2.7 atsc_clock = ~atsc_clock; // 2.7ns => 180 MHz
 		// #3.8 atsc_clock = ~atsc_clock; // 3.8ns => 130 MHz
-		// #10 atsc_clock = ~atsc_clock; 
+	end
 
 	always
 		#8.33 phy_clk = ~phy_clk; // 60MHz ULPI
@@ -316,10 +318,112 @@ module ts_proxy_tb ();
 		endcase
 	end
 
+	reg	[1:0]	ts_pid;
+	reg	[7:0]	ts_dc;
+	reg	[7:0]	ts_bc;
+	reg	[7:0]	pattern;
+	reg	[3:0]	counter;
+	reg	[7:0]   ts_state;
+	reg	[7:0]   ts_state_next;
+	parameter [7:0]
+		ST_TS_SEND_SYNC = 8'd0,
+		ST_TS_SEND_PID = 8'd1,
+		ST_TS_SEND_PID2 = 8'd2,
+		ST_TS_SEND_COUNTER = 8'd5,
+		ST_TS_SEND_PAYLOAD = 8'd10,
+		ST_TS_SEND = 8'd11,
+		ST_TS_DELAY = 8'd12;
+
+	/* TS transfers */
+	always @(posedge phy_clk ) begin
+		ts_dc <= ts_dc + 1;
+
+		case(ts_state)
+			ST_TS_SEND_SYNC:
+			begin
+				indata <= 8'h47;
+				i <= 0;
+				ts_state <= ST_TS_SEND;
+				ts_state_next <= ST_TS_SEND_PID;
+				// atsc_start <= 1;
+			end
+
+			ST_TS_SEND_PID:
+			begin
+				// atsc_start <= 0;
+				indata <= 8'h01;
+				i <= 0;
+				ts_state <= ST_TS_SEND;
+				ts_state_next <= ST_TS_SEND_PID2;
+			end
+
+			ST_TS_SEND_PID2:
+			begin
+				indata <= 8'hfe + ts_pid;
+				ts_pid <= ts_pid + 1;
+				i <= 0;
+				ts_state <= ST_TS_SEND;
+				ts_state_next <= ST_TS_SEND_COUNTER;
+			end
+
+			ST_TS_SEND_COUNTER:
+			begin
+				indata <= {4'h0, counter};
+				i <= 0;
+				counter <= counter + 1;
+				ts_state <= ST_TS_SEND;
+				ts_state_next <= ST_TS_SEND_PAYLOAD;
+				ts_bc <= 8'd184;
+				pattern <= pattern + 1;
+				// pattern <= 0;
+			end
+
+			ST_TS_SEND_PAYLOAD:
+			begin
+				if (ts_bc == 0)
+				begin
+					ts_state <= ST_TS_SEND_SYNC; // next TS packet
+					// delay
+				end else
+				begin
+					indata <= pattern;
+					// pattern <= pattern + 1;
+					i <= 0;
+					ts_state <= ST_TS_SEND;
+					ts_state_next <= ST_TS_SEND_PAYLOAD;
+					ts_bc <= ts_bc - 1;
+				end
+			end
+
+			// send 8 bit data
+			ST_TS_SEND:
+			begin
+				@(negedge atsc_clock);
+				atsc_valid <= 1;
+				atsc_data <= indata[7-i];
+				@(negedge atsc_clock);
+				atsc_valid <= 0;
+				i <= i + 1;
+				if (i == 7) begin
+					// ts_state <= ST_TS_DELAY;
+					ts_state <= ts_state_next;
+					ts_dc <= 0;
+				end
+			end
+
+			ST_TS_DELAY:
+			begin
+				if (ts_dc > 4)
+					ts_state <= ts_state_next;
+			end
+		endcase
+	end
+
 	/* serialize data from TS and write it to USB EP */
 	initial
 	begin
 		/* set all signals initial values */
+		reset = 1; // reset is active
 		ulpi_state = ST_ULPI_RST;
 		clk = 1'b0; // at time 0
 		atsc_clock = 1'b0; // at time 0
@@ -332,73 +436,38 @@ module ts_proxy_tb ();
 		phy_ulpi_wr_en = 1'b0;
 		phy_ulpi_wr_d = 8'h0;
 		indata = 8'h00;
+		ts_dc = 0;
 		i = 0;
-		reset = 1; // reset is active
+		ts_state = ST_TS_SEND_SYNC;
+		ts_bc = 8'h0;
+		counter = 8'h0;
+		pattern = 8'h45;
+		ts_pid = 1'b0;
+		// go !
 		#40 reset = 1'b0; // disable reset
 
 		// decrease waitime in ulpi from 10msec to 0usec
 		// this allows us to simulate smaller time range
 		force ts_proxy_tb.USBTOP.ia.reset_waittime = 0;
 
-		// TS sync 0x47
-		@(negedge atsc_clock);
-		@(negedge atsc_clock);
-		@(negedge atsc_clock);
-		indata = 8'h47;
-		atsc_start <= 1;
-		atsc_valid <= 1;
-		for( i = 0; i < 8; i=i+1 )
-		begin
-			atsc_data <= indata[7-i];
-			@(negedge atsc_clock);
-			// @(negedge atsc_clock);
-		end
-		atsc_valid <= 0;
-		atsc_start <= 0;
+		// block PID
+		// @(negedge phy_clk);
+		force ts_proxy_tb.DUT.ts_filter_inst.table_wr_address = 13'h176;
+		force ts_proxy_tb.DUT.ts_filter_inst.table_data = 1'b1;
+		force ts_proxy_tb.DUT.ts_filter_inst.table_wren = 1'b1;
+		@(negedge phy_clk);
+		force ts_proxy_tb.DUT.ts_filter_inst.table_wr_address = 13'h1ff;
+		force ts_proxy_tb.DUT.ts_filter_inst.table_data = 1'b1;
+		force ts_proxy_tb.DUT.ts_filter_inst.table_wren = 1'b1;
+		@(negedge phy_clk);
+		force ts_proxy_tb.DUT.ts_filter_inst.table_wren = 1'b0;
+		// force ts_proxy_tb.DUT.ts_filter_inst.table_wr_address = 13'h178;
+		// force ts_proxy_tb.DUT.ts_filter_inst.table_data = 1'b1;
+		// force ts_proxy_tb.DUT.ts_filter_inst.table_wren = 1'b1;
+		// @(negedge atsc_clock);
+		// @(negedge atsc_clock);
 
-		// TS PID
-		@(negedge atsc_clock);
-		indata = 8'h1;
-		for( i = 0; i < 8; i=i+1 )
-		begin
-			atsc_valid <= 1;
-			atsc_data <= indata[7-i];
-			@(negedge atsc_clock);
-			atsc_valid <= 0;
-		end
+		force ts_proxy_tb.DUT.ts_filter_inst.table_wren = 1'b0;
 
-		@(negedge atsc_clock);
-		indata = 8'h77;
-		for( i = 0; i < 8; i=i+1 )
-		begin
-			atsc_valid <= 1;
-			atsc_data <= indata[7-i];
-			@(negedge atsc_clock);
-			atsc_valid <= 0;
-		end
-
-		// TS counter
-		@(negedge atsc_clock);
-		indata = 8'h10;
-		for( i = 0; i < 8; i=i+1 )
-		begin
-			atsc_valid <= 1;
-			atsc_data <= indata[7-i];
-			@(negedge atsc_clock);
-			atsc_valid <= 0;
-		end
-
-		indata = 8'h0;
-		for( bytes_sent = 0; bytes_sent < 32768; bytes_sent=bytes_sent+1 )
-		begin
-			indata = indata + 1;
-			for( i = 0; i < 8; i=i+1 )
-			begin
-				atsc_start <= 0;
-				atsc_valid <= 1;
-				atsc_data <= indata[7-i];
-				@(negedge atsc_clock);
-			end
-		end
 	end
 endmodule
