@@ -53,10 +53,11 @@ input	wire			ep3_buf_out_clear,
 // TS from host, bulk
 input		wire	[8:0]	ep4_buf_out_addr,
 output	wire	[7:0]	ep4_buf_out_q,
-output	wire	[9:0]	ep4_buf_out_len,
+output	wire	[10:0]	ep4_buf_out_len,
 output	wire			ep4_buf_out_hasdata,
 input	wire				ep4_buf_out_arm,
 output	wire			ep4_buf_out_arm_ack,
+input	wire			ep4_buf_out_clear,
 
 // EP2 OUT
 input	wire	[8:0]	buf_out_addr,
@@ -323,6 +324,7 @@ usb2_protocol ipr (
 	.ep4_buf_out_hasdata(ep4_buf_out_hasdata),
 	.ep4_buf_out_arm(ep4_buf_out_arm),
 	.ep4_buf_out_arm_ack(ep4_buf_out_arm_ack),
+	.ep4_buf_out_clear			(ep4_buf_out_clear),
 	
 	.ext_buf_out_addr		( buf_out_addr ),
 	.ext_buf_out_q			( buf_out_q ),

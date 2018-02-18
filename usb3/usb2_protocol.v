@@ -64,11 +64,12 @@ output	wire			ep3_ext_buf_out_hasdata,
 input	wire			ep3_ext_buf_out_arm,
 output	wire			ep3_ext_buf_out_arm_ack,
 input		wire		ep3_buf_out_clear,
+input		wire		ep4_buf_out_clear,
 
 // EXTERNAL EP4 (Transport Stream from host. Bulk)
 input	wire	[8:0]	ep4_buf_out_addr,
 output	wire	[7:0]	ep4_buf_out_q,
-output	wire	[9:0]	ep4_buf_out_len,
+output	wire	[10:0]	ep4_buf_out_len,
 output	wire			ep4_buf_out_hasdata,
 input	wire			ep4_buf_out_arm,
 output	wire			ep4_buf_out_arm_ack,
@@ -429,6 +430,7 @@ usb2_ep iep4 (
 	.buf_out_hasdata	( ep4_buf_out_hasdata ),
 	.buf_out_arm		( ep4_buf_out_arm ),
 	.buf_out_arm_ack	( ep4_buf_out_arm_ack ),
+	.buf_out_clear		(ep4_buf_out_clear),
 	
 	.mode				( EP4_MODE ),
 	.fast_commit (1),

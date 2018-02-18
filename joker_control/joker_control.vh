@@ -14,5 +14,6 @@ parameter 	J_CMD_VERSION=0, /* return fw version */
 				J_CMD_CI_TS=23,  /* enable/disable TS through CAM */
 				J_CMD_SPI=30, /* SPI bus access */
 				J_CMD_CLEAR_TS_FIFO=35, /* clear TS FIFO */
-				J_CMD_REBOOT=36 /* start FPGA reboot */
+				J_CMD_REBOOT=36, /* start FPGA reboot */
+				J_CMD_TS_FILTER=40 /* TS PID filtering */
 				;

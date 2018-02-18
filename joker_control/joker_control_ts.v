@@ -17,7 +17,7 @@ module joker_control_ts
 	
 	/* EP4 OUT, TS from host, bulk  */
    input    wire  ep4_buf_out_hasdata, 
-	input		wire	[9:0] ep4_buf_out_len, 
+	input		wire	[10:0] ep4_buf_out_len, 
 	input		wire	[7:0] ep4_buf_out_q,
 	output	reg	[10:0] ep4_buf_out_addr,
 	input		wire	ep4_buf_out_arm_ack,
@@ -43,7 +43,7 @@ module joker_control_ts
 `include "joker_control.vh"
 
 // CI part (Common Interface)
-reg	[9:0] ts_size;
+reg	[10:0] ts_size;
 reg	[7:0] ms; // milliseconds
 reg	[15:0] ms_cnt;
 reg   [15:0] cnt;
@@ -109,16 +109,18 @@ always @(posedge clk) begin
 	end
 	ST_TS_PROCESS:
 	begin
-		ts_usb_writereq <= 0;
 		if (processed < ts_size && ms < 100) begin
 			if (~ts_usb_almost_full) begin
 				ts_usb_data <= ep4_buf_out_q[7:0];
+				ts_usb_writereq <= 1;
 				processed <= processed + 1;
 				ep4_buf_out_addr <= ep4_buf_out_addr + 1;
 				ts_state <= ST_TS_WRITE_FIFO;
 				total_bytes <= total_bytes + 1;
-			end
+			end else
+				ts_usb_writereq <= 0;
 		end else begin
+			ts_usb_writereq <= 0;
 			// all done
 			ts_state <= ST_TS_FINISH;
 		end
@@ -126,7 +128,7 @@ always @(posedge clk) begin
 	ST_TS_WRITE_FIFO:
 	begin
 		ts_state <= ST_TS_PROCESS;
-		ts_usb_writereq <= 1;
+		ts_usb_writereq <= 0;
 	end
 	ST_TS_FINISH:
 	begin

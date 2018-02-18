@@ -25,11 +25,12 @@ module joker_control
 	
 	/* EP4 OUT, TS from host, bulk  */
    input    wire  ep4_buf_out_hasdata, 
-	input		wire	[9:0] ep4_buf_out_len, 
+	input		wire	[10:0] ep4_buf_out_len, 
 	input		wire	[7:0] ep4_buf_out_q,
 	output	wire	[10:0] ep4_buf_out_addr,
 	input		wire	ep4_buf_out_arm_ack,
 	output	reg	ep4_buf_out_arm,	
+	output	reg	ep4_buf_out_clear,
 	
 	/* EP2 OUT */
    input    wire  buf_out_hasdata, 
@@ -85,7 +86,11 @@ module joker_control
 	output	wire	cam0_fail,
 	output	reg	ts_ci_enable,
 	
-	output		reg	fifo_aclr
+	output		reg	fifo_aclr,
+
+	output	wire[12:0]  table_wr_address,
+	output	wire [0:0]  table_data,
+	output	wire table_wren
 );
 
 // remote update
@@ -243,6 +248,22 @@ joker_ci joker_ci_inst(
 	.ci_ce_n(ci_ce_n)	
 );
 
+// TS PID filtering 
+wire	ts_filter_ack;
+wire	[10:0]	buf_out_addr_ts_filter;
+
+joker_ts_filter_control joker_ts_filter_control_inst(
+	.clk(clk),
+	.reset(reset),
+	.ack_o(ts_filter_ack),
+	.j_cmd(j_cmd),
+	.buf_out_addr(buf_out_addr_ts_filter),
+	.buf_out_q(buf_out_q),
+	.table_wr_address(table_wr_address),
+	.table_data(table_data),
+	.table_wren(table_wren)
+);
+
 // TS part
 wire	ts_ack;
 wire	[10:0]	usb_in_commit_len_ts;
@@ -276,7 +297,8 @@ joker_control_ts joker_control_ts_inst(
 );
 
 /* mux usb EP's between submodules */
-assign	buf_out_addr_o = (j_cmd == J_CMD_SPI) ? buf_out_addr_spi : 
+assign	buf_out_addr_o = (j_cmd == J_CMD_TS_FILTER) ? buf_out_addr_ts_filter :
+								(j_cmd == J_CMD_SPI) ? buf_out_addr_spi : 
 								(j_cmd == J_CMD_CI_RW) ? buf_out_addr_ci :  buf_out_addr;
 assign	usb_in_addr_o = (j_cmd == J_CMD_SPI) ? usb_in_addr_spi :
 								(j_cmd == J_CMD_CI_RW) ? usb_in_addr_ci : usb_in_addr;
@@ -327,6 +349,7 @@ begin
 		usb_in_data <= 0;
 		usb_in_commit_len <= 0;
 		ep3_buf_out_clear <= 0;
+		ep4_buf_out_clear <= 0;
 		/* '1' - mean in reset state
 		 * '0' - mean in unreset state
 		 * bit:
@@ -506,6 +529,28 @@ begin
 			default:	j_state <= J_ST_DEFAULT;
 			endcase
 		end
+	
+		/********** J_CMD_TS_FILTER **********/
+		J_CMD_TS_FILTER:
+		begin
+			case(j_state)
+			J_ST_1:
+			begin
+				if(ts_filter_ack)
+				begin
+					c_state <= ST_CMD_DONE; /* wait next cmd */
+				end
+			end
+			J_ST_DEFAULT: 
+			begin
+				if(usb_in_ready) /*prevent owerwriting; may cause lock */
+				begin
+					j_state <= J_ST_1;
+				end
+			end
+			default:	j_state <= J_ST_DEFAULT;
+			endcase
+		end		
 		
 		/********** J_CMD_TS_INSEL_WRITE **********/
 		J_CMD_TS_INSEL_WRITE:
@@ -630,6 +675,7 @@ begin
 				fifo_aclr <= 1;
 				// clear collected TS data from EP3 buffers
 				ep3_buf_out_clear <= 1;
+				ep4_buf_out_clear <= 1;
 				j_state <= J_ST_2;
 				cnt <= 0;
 			end
@@ -638,6 +684,7 @@ begin
 				if (cnt > 2) begin
 					fifo_aclr <= 0;
 					ep3_buf_out_clear <= 0;
+					ep4_buf_out_clear <= 0;
 					c_state <= ST_CMD_DONE; /* wait next cmd */
 				end
 			end

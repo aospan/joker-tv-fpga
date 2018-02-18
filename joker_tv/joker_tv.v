@@ -134,6 +134,7 @@ joker_control joker_control_inst (
 	.FLASH_nCS(pFLASH_nCS),
 		
 	.ep3_buf_out_clear(ep3_buf_out_clear),
+	.ep4_buf_out_clear(ep4_buf_out_clear),
 	
 	/* EP4 OUT. TS from host, bulk */
    .ep4_buf_out_hasdata(ep4_buf_out_hasdata), 
@@ -196,9 +197,13 @@ joker_control joker_control_inst (
 	.cam0_ready(cam0_ready),
 	.cam0_fail(cam0_fail),
 	.ts_ci_enable(ts_ci_enable),
-	.fifo_aclr(fifo_aclr)
-);
+	.fifo_aclr(fifo_aclr),
 
+	// PID filtering table
+	.table_wr_address(table_wr_address),
+	.table_data(table_data),
+	.table_wren(table_wren)
+);
 
 /* "low power" (suspend) mode */
 wire	suspend;
@@ -222,7 +227,7 @@ wire buf_out_arm_ack;
 /* aospan usb EP4 OUT */
 wire 			ep4_buf_out_hasdata;
 wire  [7:0] ep4_buf_out_q;
-wire  [9:0] ep4_buf_out_len;
+wire  [10:0] ep4_buf_out_len;
 wire 	[10:0] ep4_buf_out_addr; /* input */
 wire ep4_buf_out_arm;
 wire ep4_buf_out_arm_ack;
@@ -265,6 +270,11 @@ wire	ts_usb_writereq;
 wire	ts_usb_almost_full;
 wire	ts_ci_enable;
 wire	fifo_aclr;
+
+
+wire [12:0]  table_wr_address;
+wire [0:0]  table_data;
+wire	table_wren;
 
 ts_proxy ts_proxy_inst (
 	.clk( usb_ulpi_clk ),
@@ -309,7 +319,12 @@ ts_proxy ts_proxy_inst (
 	.ts_usb_almost_full(ts_usb_almost_full),
 	
 	.ts_ci_enable(ts_ci_enable),
-	.fifo_aclr(fifo_aclr)
+	.fifo_aclr(fifo_aclr),
+
+	// PID filtering table
+	.table_wr_address(table_wr_address),
+	.table_data(table_data),
+	.table_wren(table_wren)
 );
 
 ts_ci ts_ci_inst (
@@ -466,6 +481,7 @@ usb2_top iu2 (
    .ep4_buf_out_addr        ( ep4_buf_out_addr ),
    .ep4_buf_out_arm         ( ep4_buf_out_arm ),
    .ep4_buf_out_arm_ack     ( ep4_buf_out_arm_ack ),	
+   .ep4_buf_out_clear		(ep4_buf_out_clear),
 
    .dbg_linestate    (  ),
    .dbg_frame_num    (  )
@@ -497,6 +513,8 @@ wire     [ 10:0]   ep3_usb_in_commit_len;
 wire              ep3_usb_in_commit_ack;
 wire					ep3_ext_buf_out_arm;
 wire					ep3_buf_out_clear;
+
+wire					ep4_buf_out_clear;
 
 wire     [ 8:0]   usb_in_addr;
 wire     [ 7:0]   usb_in_data;

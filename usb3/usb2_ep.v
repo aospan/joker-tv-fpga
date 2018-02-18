@@ -240,6 +240,8 @@ always @(posedge phy_clk) begin
 			hasdata_out_b <= 0;
 			ptr_out <= 0;
 			ptr_in <= 0;
+			len_out_b <= 0;
+			len_out_a <= 0;
 		end
 	end
 	ST_OUT_ARM: begin

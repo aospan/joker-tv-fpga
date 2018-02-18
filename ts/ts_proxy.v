@@ -80,7 +80,12 @@ module ts_proxy (
 	output	wire	fifo_rdempty,
 	input		wire	fifo_aclr,
 	
-	output	reg	[29:0]	total_bytes_send2usb
+	output	reg	[29:0]	total_bytes_send2usb,
+
+	// PID filtering table
+	input	wire [12:0]  table_wr_address,
+	input	wire [0:0]  table_data,
+	input	wire	table_wren
 );
 
 /* state machine */
@@ -116,7 +121,7 @@ reg	fifo_rdreq;
 wire	[7:0]	fifo_q;
 wire	ts_fifo_wrreq;
 wire	[7:0]	ts_fifo_data;
-reg	ts_fifo_almost_full;
+wire	ts_fifo_almost_full;
 wire [14:0] ts_fifo_usedw;
 
 /* selected TS source */
@@ -155,6 +160,27 @@ dvb_ts_selector tssel (
 	.dvb_data (dvb_data)
 );
 
+// TS filter
+wire            ts_filter_almost_full;
+wire	[7:0]   ts_filter_out_d;
+wire             ts_filter_out_wrreq;
+wire            ts_filter_out_almost_full;
+
+ts_filter ts_filter_inst (
+	.clk(clk),
+	.reset (reset),
+	.fifo_aclr(fifo_aclr),
+	.ts_filter_in_d (selected_ts_data),
+	.ts_filter_wrreq (selected_ts_wrreq),
+	.ts_filter_almost_full (ts_filter_almost_full),
+	.ts_filter_out_d (ts_filter_out_d),
+	.ts_filter_out_wrreq (ts_filter_out_wrreq),
+	.ts_filter_out_almost_full (selected_almost_full),
+	.table_wr_address(table_wr_address),
+	.table_data(table_data),
+	.table_wren(table_wren)
+);
+
 /* MUX ts sources:
 	000 - DVB, 
 	001 - DTMB,
@@ -166,18 +192,18 @@ assign selected_ts_data = (insel == 3'b011 || insel == 3'b101) ? tsgen_data :
 									(insel == 3'b100) ? ts_usb_data : ts_demods_data;
 assign selected_ts_wrreq = (insel == 3'b011 || insel == 3'b101) ? tsgen_wrreq : 
 									(insel == 3'b100) ? ts_usb_writereq : ts_demods_wrreq;
-							
+									
 /* Route TS traffic to CAM if enabled */
-assign ts_ci_in_d = (ts_ci_enable) ? selected_ts_data : 1'b0;
-assign ts_ci_wrreq = (ts_ci_enable) ? selected_ts_wrreq : 1'b0;
+assign ts_ci_in_d = (ts_ci_enable) ? ts_filter_out_d : 1'b0;
+assign ts_ci_wrreq = (ts_ci_enable) ? ts_filter_out_wrreq : 1'b0;
 assign selected_almost_full = (ts_ci_enable) ? ts_ci_almost_full : ts_fifo_almost_full;
 
 /* Receive TS traffic from CAM if enabled */
-assign ts_fifo_data = (ts_ci_enable) ? ts_ci_out_d : selected_ts_data;
-assign ts_fifo_wrreq = (ts_ci_enable) ? ts_ci_out_wrreq : selected_ts_wrreq;
+assign ts_fifo_data = (ts_ci_enable) ? ts_ci_out_d : ts_filter_out_d;
+assign ts_fifo_wrreq = (ts_ci_enable) ? ts_ci_out_wrreq : ts_filter_out_wrreq;
 
 /* other signals mux */
-assign ts_usb_almost_full = selected_almost_full;
+assign ts_usb_almost_full = ts_filter_almost_full;
 assign ts_ci_out_almost_full = ts_fifo_almost_full;
 assign ep3_usb_in_data = fifo_q;
 
@@ -201,7 +227,6 @@ assign	missed = missed_ack;
 assign	state = ts_samp_state;
 assign	dc = cnt_p[3:0];
 
-
 always @(posedge clk ) begin
 	ts_dc <= ts_dc + 1;
 	fifo_dc <= fifo_dc + 1;
@@ -213,7 +238,7 @@ always @(posedge clk ) begin
 		3'b011: /* TSGEN selected */
 		begin
 			/* always keep FIFO almost full ! */
-			if (~selected_almost_full) begin
+			if (~ts_filter_almost_full) begin
 				fifo_dc <= 0;
 				case(tsgen_pos)
 				8'h0: tsgen_data <= 8'h47; // TS sync byte 
@@ -238,24 +263,27 @@ always @(posedge clk ) begin
 		3'b101: /* TSGEN pattern mode 2 selected */
 		begin
 			/* always keep FIFO almost full ! */
-			if (~selected_almost_full) begin			
+			if (~ts_filter_almost_full) begin			
 				fifo_dc <= 0;
 				case(tsgen_pos)
 				8'h0:
 				begin
-					tsgen_data <= 8'h47; // TS sync byte 
-					tsgen_pattern <= 0; // new TS 
+					tsgen_data <= 8'h47; // TS sync byte
 				end
 				8'h1: tsgen_data <= 8'h01; // PID high 
 				8'h2: tsgen_data <= 8'h77; // PID log 
 				8'h3:
 					begin
+						tsgen_pattern <= 0; // new TS 
 						tsgen_data <= {4'h1,tsgen_counter}; // TS counter 
 						tsgen_counter <= tsgen_counter + 1; // new TS 
 					end
-				default: tsgen_data <= tsgen_pattern;
+				default: 
+					begin
+						tsgen_pattern <= tsgen_pattern + 1; // new TS 
+						tsgen_data <= tsgen_pattern;
+					end
 				endcase
-				tsgen_pattern <= tsgen_pattern + 1; // new TS 
 				tsgen_pos <= tsgen_pos + 1'b1;
 				if (tsgen_pos == 8'd187)
 					tsgen_pos <= 0;
@@ -267,13 +295,12 @@ always @(posedge clk ) begin
 
 		default:
 		begin
-			/* write real data from demods into FIFO if available */
+		/* write real data from demods into FIFO if available */
 			if (dval) begin
 				if (selected_almost_full) begin
 					tslost_cnt <= tslost_cnt + 1;
 					ts_demods_wrreq <= 0;
-				end
-				else begin
+				end else begin
 					ts_demods_wrreq <= 1;
 				end
 			end else begin
@@ -349,6 +376,7 @@ always @(posedge clk ) begin
 		tsgen_counter <= 0;
 		tsgen_pos <= 0;
 		tsgen_data <= 8'h0;
+		tsgen_wrreq <= 0;
 		wren <= 0;
 		fifo_rdreq <= 0;
 		acked <= 0;
