@@ -85,7 +85,8 @@ module ts_proxy (
 	// PID filtering table
 	input	wire [12:0]  table_wr_address,
 	input	wire [0:0]  table_data,
-	input	wire	table_wren
+	input	wire	table_wren,
+	output	wire	pkt_start
 );
 
 /* state machine */
@@ -122,7 +123,7 @@ wire	[7:0]	fifo_q;
 wire	ts_fifo_wrreq;
 wire	[7:0]	ts_fifo_data;
 wire	ts_fifo_almost_full;
-wire [14:0] ts_fifo_usedw;
+wire [14:0] ts_fifo_usedw/* synthesis noprune */;
 
 /* selected TS source */
 wire	[7:0]	selected_ts_data;
@@ -178,7 +179,8 @@ ts_filter ts_filter_inst (
 	.ts_filter_out_almost_full (selected_almost_full),
 	.table_wr_address(table_wr_address),
 	.table_data(table_data),
-	.table_wren(table_wren)
+	.table_wren(table_wren),
+	.pkt_start(pkt_start)
 );
 
 /* MUX ts sources:

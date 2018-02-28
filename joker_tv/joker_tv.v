@@ -236,6 +236,7 @@ reg [7:0] dc;
 reg [7:0] dc_rd = 8'h00;
 reg [7:0] dc_rd_wrap = 8'h00;
 
+wire clk_9;
 wire clk_50;
 reg [1:0] det_ack;
 wire acked;
@@ -275,6 +276,7 @@ wire	fifo_aclr;
 wire [12:0]  table_wr_address;
 wire [0:0]  table_data;
 wire	table_wren;
+wire pkt_start;
 
 ts_proxy ts_proxy_inst (
 	.clk( usb_ulpi_clk ),
@@ -324,13 +326,16 @@ ts_proxy ts_proxy_inst (
 	// PID filtering table
 	.table_wr_address(table_wr_address),
 	.table_data(table_data),
-	.table_wren(table_wren)
+	.table_wren(table_wren),
+	.pkt_start(pkt_start)
 );
 
 ts_ci ts_ci_inst (
 	.clk( usb_ulpi_clk ),
+	.clk_9(clk_9),
 	.reset(reset),
 
+	.pkt_start(pkt_start),
 	.CI_MDI(CI_MDI),
 	.CI_MCLKI(CI_MCLKI),
 	.CI_MISTRT(CI_MISTRT),
@@ -354,7 +359,8 @@ ts_ci ts_ci_inst (
 
 aospan_pll  apll (
    .inclk0           ( clk_27 ),
-   .c0               (clk_50)
+   .c0               (clk_50),
+	.c1					(clk_9)
 );
 
 reg      reset;

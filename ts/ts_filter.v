@@ -28,6 +28,9 @@ module ts_filter (
 	output	reg		ts_filter_out_wrreq,
 	input	wire		ts_filter_out_almost_full,
 
+	/* signal when TS packet starts */
+	output	reg	pkt_start,
+
 	input	wire	fifo_aclr
 );
 
@@ -130,6 +133,11 @@ always @(posedge clk ) begin
 	
 	ST_TS_FILTER_PROCESS:
 	begin
+		if (bc == 8'd6 && allowed && ts_filter_wrreq)
+				pkt_start <= 1;
+		else
+			pkt_start <= 0;
+			
 		if (bc == 8'd187 && ts_filter_wrreq) begin
 			bc <= 0;
 			ts_filter_state <= ST_TS_FILTER_IDLE;
@@ -150,6 +158,7 @@ always @(posedge clk ) begin
 		data0 <= 0;
 		pid <= 8'hxx;
 		fifo_aclr1 <= 0;
+		pkt_start <= 0;
 	end
 end
 endmodule

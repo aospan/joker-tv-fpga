@@ -1,29 +1,28 @@
-## Generated SDC file "top.sdc"
+## Generated SDC file "joker_tv.sdc"
 
-## Copyright (C) 1991-2014 Altera Corporation. All rights reserved.
-## Your use of Altera Corporation's design tools, logic functions 
+## Copyright (C) 2017  Intel Corporation. All rights reserved.
+## Your use of Intel Corporation's design tools, logic functions 
 ## and other software and tools, and its AMPP partner logic 
 ## functions, and any output files from any of the foregoing 
 ## (including device programming or simulation files), and any 
 ## associated documentation or information are expressly subject 
-## to the terms and conditions of the Altera Program License 
-## Subscription Agreement, the Altera Quartus II License Agreement,
-## the Altera MegaCore Function License Agreement, or other 
-## applicable license agreement, including, without limitation, 
-## that your use is for the sole purpose of programming logic 
-## devices manufactured by Altera and sold by Altera or its 
-## authorized distributors.  Please refer to the applicable 
-## agreement for further details.
+## to the terms and conditions of the Intel Program License 
+## Subscription Agreement, the Intel Quartus Prime License Agreement,
+## the Intel FPGA IP License Agreement, or other applicable license
+## agreement, including, without limitation, that your use is for
+## the sole purpose of programming logic devices manufactured by
+## Intel and sold by Intel or its authorized distributors.  Please
+## refer to the applicable agreement for further details.
 
 
 ## VENDOR  "Altera"
-## PROGRAM "Quartus II"
-## VERSION "Version 14.0.0 Build 200 06/17/2014 SJ Web Edition"
+## PROGRAM "Quartus Prime"
+## VERSION "Version 17.1.0 Build 590 10/25/2017 SJ Lite Edition"
 
-## DATE    "Mon Oct  6 16:12:01 2014"
+## DATE    "Tue Feb 27 08:27:31 2018"
 
 ##
-## DEVICE  "EP4CE30F29C8"
+## DEVICE  "EP4CE22F17C8"
 ##
 
 
@@ -39,116 +38,23 @@ set_time_format -unit ns -decimal_places 3
 # Create Clock
 #**************************************************************
 
-# Main DVB clock
-create_clock -name {SYSCLK} -period "27 MHz" [get_ports {clk_27}]
+create_clock -name {SYSCLK} -period 37.037 -waveform { 0.000 18.518 } [get_ports {clk_27}]
+create_clock -name {ATSC_CLOCK} -period 16.666 -waveform { 0.000 8.333 } [get_ports {lg_clk}]
+create_clock -name {DTMB_CLOCK} -period 16.666 -waveform { 0.000 8.333 } [get_ports {TS_ATBM8881_CLK}]
+create_clock -name {SONY_CLOCK} -period 5.555 -waveform { 0.000 2.777 } [get_ports {sony_clk}]
+create_clock -name {usb_ulpi_clk} -period 16.666 -waveform { 0.000 8.333 } [get_ports {usb_ulpi_clk}]
+create_clock -name {CI_MCLKO} -period 111.111 -waveform { 0.000 55.555 } [get_ports {CI_MCLKO}]
+create_clock -name {CI_MCLKI} -period 111.111 -waveform { 0.000 55.555 } [get_ports {CI_MCLKI}]
+create_clock -name {usb0_rx_launch_clock} -period 4.000 -waveform { 1.000 3.000 } 
 
-# ATSC
-create_clock -name {ATSC_CLOCK} -period "60 MHz" [get_ports {lg_clk}]
-
-# DTMB
-create_clock -name {DTMB_CLOCK} -period "60 MHz" [get_ports {TS_ATBM8881_CLK}]
-
-# SONY
-create_clock -name {SONY_CLOCK} -period "180 MHz" [get_ports {sony_clk}]
-
-# ULPI 
-create_clock -name {usb_ulpi_clk} -period "60 MHz" [get_ports {usb_ulpi_clk}]
-
-# CAM module out traffic
-create_clock -name {CI_MCLKO} -period "10 MHz" [get_ports {CI_MCLKO}]
-
-# PIPE
-
-set usb_pclk_period 4.000
-#set usb_txclk_period 4.000
-
-# Clock at dedicated clock input to FPGA
-create_clock \
-	-name usb0_rx_data_clock \
-	-period $usb_pclk_period \
-	[get_ports {usb0_pclk}]
-
-# Remote (virtual) clock that transmits both the data and clock from the PHY.
-create_clock \
-	-name usb0_rx_launch_clock \
-	-waveform {1 3} \
-	-period $usb_pclk_period
-	
-# Clock used to clock RX input registers.
-create_generated_clock \
-	-name usb0_rx_latch_clock \
-	-source [get_pins {usb0_pclk_pll|altpll_component|auto_generated|pll1|inclk[0]}] \
-	[get_pins {usb0_pclk_pll|altpll_component|auto_generated|pll1|clk[0]}]
-
-#create_clock -name usb0_txclk_virt -period $usb_txclk_period
-##create_clock -name usb0_txclk_output -period $usb_txclk_period [get_ports {usb0_tx_clk}]
-#create_generated_clock \
-#	-name usb0_txclk_out \
-#	-source [get_pins usb0_tx_clk_out|ALTDDIO_OUT_component|auto_generated|ddio_outa[0]|muxsel] \
-#	[get_ports usb0_tx_clk]
-
-#create_clock -name usb1_pclk_virt -period $usb_pclk_period
-#create_clock -name usb1_pclk_input -period $usb_pclk_period [get_ports {usb1_pclk}]
-
-#create_clock -name usb1_txclk_virt -period $usb_txclk_period
-##create_clock -name usb1_txclk_output -period $usb_txclk_period [get_ports {usb1_tx_clk}]
-#create_generated_clock \
-#	-name usb1_txclk_out \
-#	-source [get_pins usb1_tx_clk_out|ALTDDIO_OUT_component|auto_generated|ddio_outa[0]|muxsel] \
-#	[get_ports usb1_tx_clk]
-
-#create_generated_clock \
-#	-name usb0_pclk_phase_90 \
-#	-source usb0_pclk_pll|altpll_component|auto_generated|pll1|inclk[0] \
-#	-phase 90 \
-#	usb0_pclk_pll|altpll_component|auto_generated|pll1|clk[1]
-#create_generated_clock \
-#	-name usb0_pclk_phase_180 \
-#	-source usb0_pclk_pll|altpll_component|auto_generated|pll1|inclk[0] \
-#	-phase 180 \
-#	usb0_pclk_pll|altpll_component|auto_generated|pll1|clk[2]
-#create_generated_clock \
-#	-name usb0_pclk_phase_270 \
-#	-source usb0_pclk_pll|altpll_component|auto_generated|pll1|inclk[0] \
-#	-phase 270 \
-#	usb0_pclk_pll|altpll_component|auto_generated|pll1|clk[3]
-
-#create_generated_clock \
-#	-name usb1_pclk_phase_0 \
-#	-source usb1_pclk_pll|altpll_component|auto_generated|pll1|inclk[0] \
-#	-phase 0 \
-#	usb1_pclk_pll|altpll_component|auto_generated|pll1|clk[0]
-#create_generated_clock \
-#	-name usb1_pclk_phase_90 \
-#	-source usb1_pclk_pll|altpll_component|auto_generated|pll1|inclk[0] \
-#	-phase 90 \
-#	usb1_pclk_pll|altpll_component|auto_generated|pll1|clk[1]
-#create_generated_clock \
-#	-name usb1_pclk_phase_180 \
-#	-source usb1_pclk_pll|altpll_component|auto_generated|pll1|inclk[0] \
-#	-phase 180 \
-#	usb1_pclk_pll|altpll_component|auto_generated|pll1|clk[2]
-#create_generated_clock \
-#	-name usb1_pclk_phase_270 \
-#	-source usb1_pclk_pll|altpll_component|auto_generated|pll1|inclk[0] \
-#	-phase 270 \
-#	usb1_pclk_pll|altpll_component|auto_generated|pll1|clk[3]
-
-# ULPI
-
-#set usb_ulpi_clk_period 16.666
-#
-#create_clock -name {usb0_ulpi_clk_virt} -period $usb_ulpi_clk_period
-#create_clock -name {usb0_ulpi_clk_input} -period $usb_ulpi_clk_period [get_ports {usb0_ulpi_clk}]
-#
-#create_clock -name {usb1_ulpi_clk_virt} -period $usb_ulpi_clk_period
-#create_clock -name {usb1_ulpi_clk_input} -period $usb_ulpi_clk_period [get_ports {usb1_ulpi_clk}]
 
 #**************************************************************
 # Create Generated Clock
 #**************************************************************
 
-derive_pll_clocks
+create_generated_clock -name {apll|altpll_component|auto_generated|pll1|clk[0]} -source [get_pins {apll|altpll_component|auto_generated|pll1|inclk[0]}] -duty_cycle 50/1 -multiply_by 50 -divide_by 27 -master_clock {SYSCLK} [get_pins {apll|altpll_component|auto_generated|pll1|clk[0]}] 
+create_generated_clock -name {apll|altpll_component|auto_generated|pll1|clk[1]} -source [get_pins {apll|altpll_component|auto_generated|pll1|inclk[0]}] -duty_cycle 50/1 -multiply_by 1 -divide_by 3 -master_clock {SYSCLK} [get_pins {apll|altpll_component|auto_generated|pll1|clk[1]}] 
+
 
 #**************************************************************
 # Set Clock Latency
@@ -160,104 +66,117 @@ derive_pll_clocks
 # Set Clock Uncertainty
 #**************************************************************
 
-derive_clock_uncertainty
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -rise_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}]  0.020  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -fall_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}]  0.020  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -rise_to [get_clocks {CI_MCLKI}] -setup 0.090  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -rise_to [get_clocks {CI_MCLKI}] -hold 0.070  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -fall_to [get_clocks {CI_MCLKI}] -setup 0.090  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -fall_to [get_clocks {CI_MCLKI}] -hold 0.070  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -rise_to [get_clocks {usb_ulpi_clk}] -setup 0.110  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -rise_to [get_clocks {usb_ulpi_clk}] -hold 0.090  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -fall_to [get_clocks {usb_ulpi_clk}] -setup 0.110  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -fall_to [get_clocks {usb_ulpi_clk}] -hold 0.090  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -rise_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}]  0.020  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -fall_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}]  0.020  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -rise_to [get_clocks {CI_MCLKI}] -setup 0.090  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -rise_to [get_clocks {CI_MCLKI}] -hold 0.070  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -fall_to [get_clocks {CI_MCLKI}] -setup 0.090  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -fall_to [get_clocks {CI_MCLKI}] -hold 0.070  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -rise_to [get_clocks {usb_ulpi_clk}] -setup 0.110  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -rise_to [get_clocks {usb_ulpi_clk}] -hold 0.090  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -fall_to [get_clocks {usb_ulpi_clk}] -setup 0.110  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -fall_to [get_clocks {usb_ulpi_clk}] -hold 0.090  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -rise_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}]  0.020  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -fall_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}]  0.020  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -rise_to [get_clocks {usb_ulpi_clk}] -setup 0.110  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -rise_to [get_clocks {usb_ulpi_clk}] -hold 0.090  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -fall_to [get_clocks {usb_ulpi_clk}] -setup 0.110  
+set_clock_uncertainty -rise_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -fall_to [get_clocks {usb_ulpi_clk}] -hold 0.090  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -rise_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}]  0.020  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -fall_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}]  0.020  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -rise_to [get_clocks {usb_ulpi_clk}] -setup 0.110  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -rise_to [get_clocks {usb_ulpi_clk}] -hold 0.090  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -fall_to [get_clocks {usb_ulpi_clk}] -setup 0.110  
+set_clock_uncertainty -fall_from [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -fall_to [get_clocks {usb_ulpi_clk}] -hold 0.090  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -setup 0.090  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -hold 0.110  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -setup 0.090  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -hold 0.110  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -setup 0.090  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -hold 0.110  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -setup 0.090  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -hold 0.110  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {usb_ulpi_clk}]  0.020  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {usb_ulpi_clk}]  0.020  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {SONY_CLOCK}]  0.030  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {SONY_CLOCK}]  0.030  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {DTMB_CLOCK}]  0.040  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {DTMB_CLOCK}]  0.040  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {ATSC_CLOCK}]  0.030  
+set_clock_uncertainty -rise_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {ATSC_CLOCK}]  0.030  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -setup 0.090  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -hold 0.110  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -setup 0.090  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[1]}] -hold 0.110  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -setup 0.090  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -hold 0.110  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -setup 0.090  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {apll|altpll_component|auto_generated|pll1|clk[0]}] -hold 0.110  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {usb_ulpi_clk}]  0.020  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {usb_ulpi_clk}]  0.020  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {SONY_CLOCK}]  0.030  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {SONY_CLOCK}]  0.030  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {DTMB_CLOCK}]  0.040  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {DTMB_CLOCK}]  0.040  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -rise_to [get_clocks {ATSC_CLOCK}]  0.030  
+set_clock_uncertainty -fall_from [get_clocks {usb_ulpi_clk}] -fall_to [get_clocks {ATSC_CLOCK}]  0.030  
+set_clock_uncertainty -rise_from [get_clocks {SONY_CLOCK}] -rise_to [get_clocks {usb_ulpi_clk}]  0.030  
+set_clock_uncertainty -rise_from [get_clocks {SONY_CLOCK}] -fall_to [get_clocks {usb_ulpi_clk}]  0.030  
+set_clock_uncertainty -fall_from [get_clocks {SONY_CLOCK}] -rise_to [get_clocks {usb_ulpi_clk}]  0.030  
+set_clock_uncertainty -fall_from [get_clocks {SONY_CLOCK}] -fall_to [get_clocks {usb_ulpi_clk}]  0.030  
+set_clock_uncertainty -rise_from [get_clocks {CI_MCLKO}] -rise_to [get_clocks {usb_ulpi_clk}]  0.020  
+set_clock_uncertainty -rise_from [get_clocks {CI_MCLKO}] -fall_to [get_clocks {usb_ulpi_clk}]  0.020  
+set_clock_uncertainty -fall_from [get_clocks {CI_MCLKO}] -rise_to [get_clocks {usb_ulpi_clk}]  0.020  
+set_clock_uncertainty -fall_from [get_clocks {CI_MCLKO}] -fall_to [get_clocks {usb_ulpi_clk}]  0.020  
+set_clock_uncertainty -rise_from [get_clocks {DTMB_CLOCK}] -rise_to [get_clocks {usb_ulpi_clk}]  0.040  
+set_clock_uncertainty -rise_from [get_clocks {DTMB_CLOCK}] -fall_to [get_clocks {usb_ulpi_clk}]  0.040  
+set_clock_uncertainty -rise_from [get_clocks {DTMB_CLOCK}] -rise_to [get_clocks {DTMB_CLOCK}]  0.020  
+set_clock_uncertainty -rise_from [get_clocks {DTMB_CLOCK}] -fall_to [get_clocks {DTMB_CLOCK}]  0.020  
+set_clock_uncertainty -fall_from [get_clocks {DTMB_CLOCK}] -rise_to [get_clocks {usb_ulpi_clk}]  0.040  
+set_clock_uncertainty -fall_from [get_clocks {DTMB_CLOCK}] -fall_to [get_clocks {usb_ulpi_clk}]  0.040  
+set_clock_uncertainty -fall_from [get_clocks {DTMB_CLOCK}] -rise_to [get_clocks {DTMB_CLOCK}]  0.020  
+set_clock_uncertainty -fall_from [get_clocks {DTMB_CLOCK}] -fall_to [get_clocks {DTMB_CLOCK}]  0.020  
+set_clock_uncertainty -rise_from [get_clocks {ATSC_CLOCK}] -rise_to [get_clocks {usb_ulpi_clk}]  0.030  
+set_clock_uncertainty -rise_from [get_clocks {ATSC_CLOCK}] -fall_to [get_clocks {usb_ulpi_clk}]  0.030  
+set_clock_uncertainty -fall_from [get_clocks {ATSC_CLOCK}] -rise_to [get_clocks {usb_ulpi_clk}]  0.030  
+set_clock_uncertainty -fall_from [get_clocks {ATSC_CLOCK}] -fall_to [get_clocks {usb_ulpi_clk}]  0.030  
+
 
 #**************************************************************
 # Set Input Delay
 #**************************************************************
 
-# PIPE
 
-set usb_rx_data_tco_min 1.000
-set usb_rx_data_tco_max 2.000
-
-set usb_tx_tsu 1.000
-set usb_tx_thold 0.000
-
-set trace_tolerance 0.100
-
-# From http://www.samtec.com/Documents/WebFiles/testrpt/time-data-summary-SMA_QTH-QSH-05mm_web.pdf
-set connector_delay 0.061
-
-# PIPE: USB0
-
-set usb0_pclk_clks_min 0.000
-set usb0_pclk_clks_max 0.000
-set usb0_pclk_clkd_min [expr 0.316 + $connector_delay - $trace_tolerance]
-set usb0_pclk_clkd_max [expr 0.316 + $connector_delay + $trace_tolerance]
-set usb0_pclk_bd_min [expr 0.307 + $connector_delay - $trace_tolerance]
-set usb0_pclk_bd_max [expr 0.617 + $connector_delay + $trace_tolerance]
-set usb0_rx_ports [get_ports {usb0_rx_data[*] usb0_rx_datak[*] usb0_rx_valid usb0_rx_status[*] usb0_phy_status}]
-
-set_input_delay \
-	-clock usb0_rx_launch_clock \
-	-max [expr $usb0_pclk_clks_max + $usb_rx_data_tco_max + $usb0_pclk_bd_max - $usb0_pclk_clkd_min] \
-	$usb0_rx_ports
-set_input_delay \
-	-clock usb0_rx_launch_clock \
-	-min [expr $usb0_pclk_clks_min + $usb_rx_data_tco_min + $usb0_pclk_bd_min - $usb0_pclk_clkd_max] \
-	$usb0_rx_ports
-
-#set usb0_txclk_clks_min 0.000
-#set usb0_txclk_clks_max 0.000
-#set usb0_txclk_clkd_min [expr 0.289 + $connector_delay - $trace_tolerance]
-#set usb0_txclk_clkd_max [expr 0.289 + $connector_delay + $trace_tolerance]
-#set usb0_txclk_bd_min [expr 0.288 + $connector_delay - $trace_tolerance]
-#set usb0_txclk_bd_max [expr 0.625 + $connector_delay + $trace_tolerance]
-#set usb0_tx_ports [get_ports {usb0_tx_data[*] usb0_tx_datak[*] usb0_tx_deemph[*] usb0_tx_detrx_lpbk usb0_tx_elecidle usb0_tx_margin[*] usb0_tx_swing usb0_rx_polarity usb0_power_down[*]}]
-#
-#set_output_delay \
-#	-clock usb0_txclk_virt \
-#	-max [expr $usb0_txclk_clks_max + $usb0_txclk_bd_max + $usb_tx_tsu - $usb0_txclk_clkd_min] \
-#	$usb0_tx_ports
-#set_output_delay \
-#	-clock usb0_txclk_virt \
-#	-min [expr $usb0_txclk_clks_min + $usb0_txclk_bd_min + $usb_tx_thold - $usb0_txclk_clkd_max] \
-#	$usb0_tx_ports \
-#	-add_delay
-
-# PIPE: USB1
-
-#set usb1_pclk_clks_min 0.000
-#set usb1_pclk_clks_max 0.000
-#set usb1_pclk_clkd_min [expr 0.368 + $connector_delay - $trace_tolerance]
-#set usb1_pclk_clkd_max [expr 0.368 + $connector_delay + $trace_tolerance]
-#set usb1_pclk_bd_min [expr 0.348 + $connector_delay - $trace_tolerance]
-#set usb1_pclk_bd_max [expr 0.471 + $connector_delay + $trace_tolerance]
-#set usb1_rx_ports [get_ports {usb1_rx_data[*] usb1_rx_datak[*] usb1_rx_valid usb1_rx_status[*] usb1_phy_status}]
-#
-#set_input_delay \
-#	-clock usb1_pclk_virt \
-#	-max [expr $usb1_pclk_clks_max + $usb_rx_data_tco_max + $usb1_pclk_bd_max - $usb1_pclk_clkd_min] \
-#	$usb1_rx_ports
-#set_input_delay \
-#	-clock usb1_pclk_virt \
-#	-min [expr $usb1_pclk_clks_min + $usb_rx_data_tco_min + $usb1_pclk_bd_min - $usb1_pclk_clkd_max] \
-#	$usb1_rx_ports
-
-#set usb1_txclk_clks_min 0.000
-#set usb1_txclk_clks_max 0.000
-#set usb1_txclk_clkd_min [expr 0.341 + $connector_delay - $trace_tolerance]
-#set usb1_txclk_clkd_max [expr 0.341 + $connector_delay + $trace_tolerance]
-#set usb1_txclk_bd_min [expr 0.325 + $connector_delay - $trace_tolerance]
-#set usb1_txclk_bd_max [expr 0.732 + $connector_delay + $trace_tolerance]
-#set usb1_tx_ports [get_ports {usb1_tx_data[*] usb1_tx_datak[*] usb1_tx_deemph[*] usb1_tx_detrx_lpbk usb1_tx_elecidle usb1_tx_margin[*] usb1_tx_swing usb1_rx_polarity usb1_power_down[*]}]
-#
-#set_output_delay \
-#	-clock usb1_txclk_virt \
-#	-max [expr $usb1_txclk_clks_max + $usb1_txclk_bd_max + $usb_tx_tsu - $usb1_txclk_clkd_min] \
-#	$usb1_tx_ports
-#set_output_delay \
-#	-clock usb1_txclk_virt \
-#	-min [expr $usb1_txclk_clks_min + $usb1_txclk_bd_min + $usb_tx_thold - $usb1_txclk_clkd_max] \
-#	$usb1_tx_ports \
-#	-add_delay
 
 #**************************************************************
 # Set Output Delay
 #**************************************************************
 
+# aospan: 
+# from en50221:
+# Clock period tclkp 111 ns
+# Clock High time tclkh 40 ns
+# Clock Low time tclkl 40 ns
+# Input Data Setup tsu 15 ns
+# Input Data Hold th 10 ns
+# Output Data Setup tosu 20 ns
+# Output Data Hold toh 15 ns
 
+set_output_delay -clock [get_clocks {CI_MCLKI}]  -max 20.000 [get_ports {CI_MISTRT CI_MIVAL CI_MDI}]
+set_output_delay -clock [get_clocks {CI_MCLKI}]  -min -20.000 [get_ports {CI_MISTRT CI_MIVAL CI_MDI}]
+
+set_input_delay -clock [get_clocks {CI_MCLKO}]  -max 15.000 [get_ports {CI_MOSTRT CI_MOVAL CI_MDO}]
+set_input_delay -clock [get_clocks {CI_MCLKO}]  -min 30.000 [get_ports {CI_MOSTRT CI_MOVAL CI_MDO}]
 
 #**************************************************************
 # Set Clock Groups
@@ -269,6 +188,8 @@ set_input_delay \
 # Set False Path
 #**************************************************************
 
+set_false_path -from [get_keepers {*rdptr_g*}] -to [get_keepers {*ws_dgrp|dffpipe_ve9:dffpipe20|dffe21a*}]
+set_false_path -from [get_keepers {*delayed_wrptr_g*}] -to [get_keepers {*rs_dgwp|dffpipe_ue9:dffpipe14|dffe15a*}]
 
 
 #**************************************************************
