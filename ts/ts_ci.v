@@ -49,13 +49,15 @@ module ts_ci (
 
 wire	[8:0]	fifo_q;
 reg	fifo_rdreq;
-reg	CI_MCLKO_prev;
-reg	CI_MOSTRT_prev;
-
 reg [8:0] c_data;
-assign c_data = {pkt_start, ts_ci_in_d};
 wire	[7:0]  wrusedw;
 wire	wrfull;
+reg [7:0] sync_data;
+wire [7:0] sync_wrusedw;
+wire [7:0] sync_q;
+reg sync_wrreq;
+
+assign c_data = {pkt_start, ts_ci_in_d};
 assign ts_ci_almost_full = (wrusedw >= 8'd250) ? 1 : 0;
 
 ts_ci_fifo ts_ci_fifo_inst (
@@ -64,7 +66,6 @@ ts_ci_fifo ts_ci_fifo_inst (
 	.wrusedw(wrusedw),
 	.wrfull(wrfull),
 	.data(c_data),
-	
 	.rdclk(clk_9),
 	.aclr(fifo_aclr),
 	.rdempty(ts_ci_rdempty),
@@ -72,15 +73,10 @@ ts_ci_fifo ts_ci_fifo_inst (
 	.q(fifo_q)
 );
 
-reg [7:0] sync_data;
-wire [7:0] sync_wrusedw;
-wire [7:0] sync_q;
-reg sync_wrreq;
-
 // synchronize CAM clock (may be any according to en50221)
 // with our clk
 ts_ci_sync ts_ci_sync_inst (
-	.wrclk(CI_MCLKO),
+	.wrclk(/* clk */ CI_MCLKO),
 	.wrreq(sync_wrreq),
 	.wrusedw(sync_wrusedw),
 	.wrfull(sync_wrfull),
@@ -106,65 +102,64 @@ parameter ST_TS_CI_IDLE=0,
 			 ST_TS_CI_WAIT_NEXT_CLK=3;
 
 assign CI_MCLKI = clk_9;
-assign	CI_MDI = fifo_q[7:0];
-assign CI_MISTRT = fifo_q[8] && CI_MIVAL;
-reg reset_prev;
-reg reset_prev_out;
 
 // send TS to CAM
-always @(posedge clk_9) begin;
-	reset_prev <= reset;
-	
-	if (CI_MISTRT)
-		pkts <= pkts + 1;
-	
-	/*** Process CAM IN traffic ***/
-	case(ts_ci_state)
-	ST_TS_CI_IDLE:
-	begin
-		if (~ts_ci_rdempty) begin
-			fifo_rdreq <= 1;
-			ts_ci_state <= ST_TS_CI_WRITE_CI;
-		end
-	end
-	ST_TS_CI_WRITE_CI:
-	begin
-		if (ts_ci_rdempty) begin
-			ts_ci_state <= ST_TS_CI_IDLE;
-			fifo_rdreq <= 0;
-			CI_MIVAL <= 0;
-		end else 
-			CI_MIVAL <= 1;
-	end
-	endcase
-	
-	if(~reset && reset_prev) begin
+always @(posedge clk_9 or posedge reset) begin;
+	if(reset) begin
+		CI_MISTRT <= 0;
 		CI_MIVAL <= 0;
+		CI_MDI <= 0;
 		ts_ci_state <= ST_TS_CI_IDLE;
 		pkts <= 0;
 		fifo_rdreq <= 0;
-	end	
+	end else begin
+		if (CI_MISTRT)
+			pkts <= pkts + 1;
+	
+		/*** Process CAM IN traffic ***/
+		case(ts_ci_state)
+		ST_TS_CI_IDLE:
+		begin
+			if (~ts_ci_rdempty) begin
+				fifo_rdreq <= 1;
+				ts_ci_state <= ST_TS_CI_WRITE_CI;
+			end
+		end
+		ST_TS_CI_WRITE_CI:
+		begin
+			if (ts_ci_rdempty) begin
+				ts_ci_state <= ST_TS_CI_IDLE;
+				fifo_rdreq <= 0;
+				CI_MIVAL <= 0;
+				CI_MISTRT <= 0;
+				CI_MDI <= 0;
+			end else begin
+				CI_MIVAL <= 1;
+				CI_MISTRT <= fifo_q[8];
+				CI_MDI <= fifo_q[7:0];
+			end
+		end
+		endcase
+	end
 end
 
 // receive TS from CAM
-always @(posedge CI_MCLKO ) begin;
-	reset_prev_out <= reset;
-	
-	if (CI_MOSTRT)
-		pkts_out <= pkts_out + 1;
-	
-	if (CI_MOVAL && sync_wrusedw < 8'd250) begin
-		sync_data <= CI_MDO;
-		sync_wrreq <= 1;
-	end else begin
-		sync_wrreq <= 0;
-	end
-		
-	if(~reset && reset_prev_out) begin
+always @(posedge CI_MCLKO or posedge reset) begin;
+	if(reset) begin
 		pkts_out <= 0;
 		sync_wrreq <= 0;
 		sync_data <= 0;
-	end	
+	end else begin
+		if (CI_MOSTRT)
+			pkts_out <= pkts_out + 1;
+	
+		if (CI_MOVAL && sync_wrusedw < 8'd250) begin
+			sync_data <= CI_MDO;
+			sync_wrreq <= 1;
+		end else begin
+			sync_wrreq <= 0;
+		end
+	end
 end
 
 endmodule

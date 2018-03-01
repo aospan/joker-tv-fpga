@@ -134,7 +134,7 @@ always @(posedge clk ) begin
 	ST_TS_FILTER_PROCESS:
 	begin
 		if (bc == 8'd6 && allowed && ts_filter_wrreq)
-				pkt_start <= 1;
+			pkt_start <= 1;
 		else
 			pkt_start <= 0;
 			
