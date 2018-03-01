@@ -18,6 +18,8 @@ module ts_proxy_tb ();
 	reg [7:0] i;
 	reg [11:0] bytes_sent;
 
+	reg	clk_9;
+
 	/* demod */
 	reg	atsc_clock;
 	reg	atsc_start;
@@ -31,6 +33,15 @@ module ts_proxy_tb ();
 	wire	[7:0]   phy_ulpi_d;
 	reg	phy_ulpi_wr_en;
 	reg	[7:0]   phy_ulpi_wr_d;
+
+	/* CI related staff */
+	wire    [7:0]   ts_ci_in_d;
+	wire    ts_ci_wrreq;
+	wire    ts_ci_almost_full;
+	wire    [7:0]   ts_ci_out_d;
+	wire    ts_ci_out_wrreq;
+	wire    ts_ci_out_almost_full;
+	wire	pkt_start;
 
 	parameter [3:0]	PID_TOKEN_OUT		= 4'hE,
 		PID_TOKEN_IN		= 4'h6,
@@ -67,14 +78,64 @@ module ts_proxy_tb ();
 		.ep3_usb_in_commit_len(ep3_usb_in_commit_len),
 		.ep3_usb_in_ready(ep3_usb_in_ready),
 		.ep3_usb_in_commit_ack(ep3_usb_in_commit_ack),
-		.ts_ci_enable(0),
+		.ts_ci_enable(1),
+		// .ts_ci_enable(0),
 		.commit_len(11'd1024), // isoc packet size
 		// .commit_len(11'd8), // isoc packet size
 		.insel(3'b010), // ATSC
 		// .insel(3'b101), // TSGEN mode 2
 		// .insel(3'b011), // TSGEN mode 1
-		.reset(reset)
+		.reset(reset),
+
+		/* CI traffic _to_ CAM (IN direction) */
+		.ts_ci_in_d(ts_ci_in_d),
+		.ts_ci_wrreq(ts_ci_wrreq),
+		.ts_ci_almost_full(ts_ci_almost_full),
+
+		/* CI traffic
+		* _from_ CAM
+		* (OUT
+		* direction)
+		* */
+		.ts_ci_out_d(ts_ci_out_d),
+		.ts_ci_out_wrreq(ts_ci_out_wrreq),
+		.ts_ci_out_almost_full(ts_ci_out_almost_full),
+		.pkt_start(pkt_start)
 	);
+
+	wire [7:0] CI_MDI;
+
+	ts_ci ts_ci_inst (
+		.clk( phy_clk ),
+		.clk_9( clk_9 ),
+		.reset(reset),
+
+		.CI_MDI(CI_MDI),
+		.CI_MCLKI(CI_MCLKI),
+		.CI_MISTRT(CI_MISTRT),
+		.CI_MIVAL(CI_MIVAL),
+
+		.CI_MDO(CI_MDI),
+		.CI_MCLKO(CI_MCLKI),
+		.CI_MOSTRT(CI_MISTRT),
+		.CI_MOVAL(CI_MIVAL),
+
+		/* .CI_MDO(CI_MDO),
+		.CI_MCLKO(CI_MCLKO),
+		.CI_MOSTRT(CI_MOSTRT),
+		.CI_MOVAL(CI_MOVAL),
+		*/
+
+		.ts_ci_in_d(ts_ci_in_d),
+		.ts_ci_wrreq(ts_ci_wrreq),
+		.ts_ci_almost_full(ts_ci_almost_full),
+
+		.ts_ci_out_d(ts_ci_out_d),
+		.ts_ci_out_wrreq(ts_ci_out_wrreq),
+		.ts_ci_out_almost_full(ts_ci_out_almost_full),
+		.pkt_start(pkt_start)
+	);
+
 
 	wire	[4:0]	next_crc5;
 	reg		[10:0]	crc5_data;
@@ -150,8 +211,12 @@ module ts_proxy_tb ();
 	always
 		#10 clk = ~clk; // every ten nanoseconds invert
 
+	always
+		#111.1 clk_9 = ~clk_9;  // 9 MHZ CI CAM
+
 	always begin
-		#16 atsc_clock = ~atsc_clock; 
+		#32 atsc_clock = ~atsc_clock; 
+		// #16 atsc_clock = ~atsc_clock; 
 		// #2.7 atsc_clock = ~atsc_clock; // 2.7ns => 180 MHz
 		// #3.8 atsc_clock = ~atsc_clock; // 3.8ns => 130 MHz
 	end
@@ -424,8 +489,8 @@ module ts_proxy_tb ();
 	begin
 		/* set all signals initial values */
 		reset = 1; // reset is active
-		ulpi_state = ST_ULPI_RST;
 		clk = 1'b0; // at time 0
+		clk_9 = 1'b0; // at time 0
 		atsc_clock = 1'b0; // at time 0
 		phy_clk = 1'b0; // at time 0
 		atsc_data = 1'b0; // at time 0
@@ -438,13 +503,14 @@ module ts_proxy_tb ();
 		indata = 8'h00;
 		ts_dc = 0;
 		i = 0;
-		ts_state = ST_TS_SEND_SYNC;
 		ts_bc = 8'h0;
 		counter = 8'h0;
 		pattern = 8'h45;
 		ts_pid = 1'b0;
 		// go !
-		#40 reset = 1'b0; // disable reset
+		#400 reset = 1'b0; // disable reset
+		ts_state = ST_TS_SEND_SYNC;
+		ulpi_state = ST_ULPI_RST;
 
 		// decrease waitime in ulpi from 10msec to 0usec
 		// this allows us to simulate smaller time range
