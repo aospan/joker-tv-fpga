@@ -19,7 +19,7 @@
 ## PROGRAM "Quartus Prime"
 ## VERSION "Version 17.1.0 Build 590 10/25/2017 SJ Lite Edition"
 
-## DATE    "Tue Feb 27 08:27:31 2018"
+## DATE    "Thu Mar  1 09:00:04 2018"
 
 ##
 ## DEVICE  "EP4CE22F17C8"
@@ -43,8 +43,8 @@ create_clock -name {ATSC_CLOCK} -period 16.666 -waveform { 0.000 8.333 } [get_po
 create_clock -name {DTMB_CLOCK} -period 16.666 -waveform { 0.000 8.333 } [get_ports {TS_ATBM8881_CLK}]
 create_clock -name {SONY_CLOCK} -period 5.555 -waveform { 0.000 2.777 } [get_ports {sony_clk}]
 create_clock -name {usb_ulpi_clk} -period 16.666 -waveform { 0.000 8.333 } [get_ports {usb_ulpi_clk}]
-create_clock -name {CI_MCLKO} -period 111.111 -waveform { 0.000 55.555 } [get_ports {CI_MCLKO}]
-create_clock -name {CI_MCLKI} -period 111.111 -waveform { 0.000 55.555 } [get_ports {CI_MCLKI}]
+create_clock -name {CI_MCLKO} -period 40.000 -waveform { 0.000 20.000 } [get_ports { CI_MCLKO }]
+create_clock -name {CI_MCLKI} -period 111.111 -waveform { 0.000 55.555 } [get_ports { CI_MCLKI }]
 create_clock -name {usb0_rx_launch_clock} -period 4.000 -waveform { 1.000 3.000 } 
 
 
@@ -54,6 +54,7 @@ create_clock -name {usb0_rx_launch_clock} -period 4.000 -waveform { 1.000 3.000 
 
 create_generated_clock -name {apll|altpll_component|auto_generated|pll1|clk[0]} -source [get_pins {apll|altpll_component|auto_generated|pll1|inclk[0]}] -duty_cycle 50/1 -multiply_by 50 -divide_by 27 -master_clock {SYSCLK} [get_pins {apll|altpll_component|auto_generated|pll1|clk[0]}] 
 create_generated_clock -name {apll|altpll_component|auto_generated|pll1|clk[1]} -source [get_pins {apll|altpll_component|auto_generated|pll1|inclk[0]}] -duty_cycle 50/1 -multiply_by 1 -divide_by 3 -master_clock {SYSCLK} [get_pins {apll|altpll_component|auto_generated|pll1|clk[1]}] 
+create_generated_clock -name {CI_MCLKO_v} -source [get_ports {CI_MCLKO}] -master_clock {CI_MCLKO} 
 
 
 #**************************************************************
@@ -156,14 +157,16 @@ set_clock_uncertainty -fall_from [get_clocks {ATSC_CLOCK}] -fall_to [get_clocks 
 # Set Input Delay
 #**************************************************************
 
-
+set_input_delay -add_delay -clock_fall -max -clock [get_clocks {CI_MCLKO_v}]  2.400 [get_ports {CI_MOSTRT CI_MOVAL CI_MDO*}]
+set_input_delay -add_delay -clock_fall -min -clock [get_clocks {CI_MCLKO_v}]  -2.400 [get_ports {CI_MOSTRT CI_MOVAL CI_MDO*}]
 
 #**************************************************************
 # Set Output Delay
 #**************************************************************
 
-# aospan: 
+# aospan:
 # from en50221:
+# Item Symbol Min Max
 # Clock period tclkp 111 ns
 # Clock High time tclkh 40 ns
 # Clock Low time tclkl 40 ns
@@ -172,11 +175,9 @@ set_clock_uncertainty -fall_from [get_clocks {ATSC_CLOCK}] -fall_to [get_clocks 
 # Output Data Setup tosu 20 ns
 # Output Data Hold toh 15 ns
 
-set_output_delay -clock [get_clocks {CI_MCLKI}]  -max 20.000 [get_ports {CI_MISTRT CI_MIVAL CI_MDI}]
-set_output_delay -clock [get_clocks {CI_MCLKI}]  -min -20.000 [get_ports {CI_MISTRT CI_MIVAL CI_MDI}]
+set_output_delay -add_delay -max -clock [get_clocks {CI_MCLKI}]  20.000 [get_ports {CI_MISTRT CI_MIVAL CI_MDI*}]
+set_output_delay -add_delay -min -clock [get_clocks {CI_MCLKI}]  -20.000 [get_ports {CI_MISTRT CI_MIVAL CI_MDI*}]
 
-set_input_delay -clock [get_clocks {CI_MCLKO}]  -max 15.000 [get_ports {CI_MOSTRT CI_MOVAL CI_MDO}]
-set_input_delay -clock [get_clocks {CI_MCLKO}]  -min 30.000 [get_ports {CI_MOSTRT CI_MOVAL CI_MDO}]
 
 #**************************************************************
 # Set Clock Groups
@@ -188,8 +189,10 @@ set_input_delay -clock [get_clocks {CI_MCLKO}]  -min 30.000 [get_ports {CI_MOSTR
 # Set False Path
 #**************************************************************
 
-set_false_path -from [get_keepers {*rdptr_g*}] -to [get_keepers {*ws_dgrp|dffpipe_ve9:dffpipe20|dffe21a*}]
-set_false_path -from [get_keepers {*delayed_wrptr_g*}] -to [get_keepers {*rs_dgwp|dffpipe_ue9:dffpipe14|dffe15a*}]
+set_false_path -from [get_keepers {*rdptr_g*}] -to [get_keepers {*ws_dgrp|dffpipe_id9:dffpipe16|dffe17a*}]
+set_false_path -from [get_keepers {*delayed_wrptr_g*}] -to [get_keepers {*rs_dgwp|dffpipe_hd9:dffpipe12|dffe13a*}]
+set_false_path -from [get_keepers {*rdptr_g*}] -to [get_keepers {*ws_dgrp|dffpipe_kd9:dffpipe9|dffe10a*}]
+set_false_path -from [get_keepers {*delayed_wrptr_g*}] -to [get_keepers {*rs_dgwp|dffpipe_jd9:dffpipe6|dffe7a*}]
 
 
 #**************************************************************
